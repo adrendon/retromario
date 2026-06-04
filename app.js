@@ -1275,6 +1275,29 @@ function connectSSE() {
   };
 }
 
+/* Fallback: cada 10s pedimos el estado completo por si SSE perdió algún evento
+   (Render free a veces corta la conexión SSE silenciosamente). */
+if (SERVER_MODE) {
+  setInterval(async () => {
+    try {
+      const r = await fetch('/api/state');
+      if (!r.ok) return;
+      const s = await r.json();
+      if (Array.isArray(s.pilots)) {
+        const same = s.pilots.length === pilots.length &&
+                     s.pilots.every((p, i) => pilots[i] && p.name === pilots[i].name);
+        if (!same) { pilots = s.pilots; renderPilots(); }
+      }
+      if (Array.isArray(s.allPilots)) allPilots = s.allPilots;
+      // Si estábamos como currentPilot pero el server no nos tiene, re-registrar.
+      if (currentPilot && clientId &&
+          !s.pilots.some(p => p.name.toLowerCase() === currentPilot.name.toLowerCase())) {
+        registerPilot(currentPilot).catch(() => {});
+      }
+    } catch {}
+  }, 10000);
+}
+
 /* ---------- Notificar al servidor cuando se cierra la pestaña ---------- */
 if (SERVER_MODE) {
   window.addEventListener('pagehide', () => {

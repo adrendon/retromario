@@ -1386,6 +1386,15 @@ body:not(.is-admin) #actions-form,
 body:not(.is-admin) #actions-clear {
   display: none !important;
 }
+
+/* Bulletproof: nada de admin se ve nunca si no eres admin (cubre casos donde
+   el atributo `hidden` no se aplique a tiempo en Render). */
+body:not(.is-admin) #admin-toggle-btn,
+body:not(.is-admin) #admin-panel,
+body:not(.is-admin) #admin-tag,
+body:not(.is-admin) .admin-only {
+  display: none !important;
+}
 /* Oculta los badges "Solo admin" y "Termina el paso anterior" */
 body:not(.is-admin) .step.is-locked::after,
 body:not(.is-admin) .step.is-admin-only::after {
