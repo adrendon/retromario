@@ -198,10 +198,10 @@
         <a href="#retro" class="btn btn-secondary">📝 Ir a la retro</a>
       </div>
 
-      <!-- Pilotos en pista -->
+      <!-- Pilotos registrados -->
       <div class="pilots-bar" id="pilots-bar">
         <div class="pilots-info">
-          <span class="pilots-title">🏎️ Pilotos en pista:</span>
+          <span class="pilots-title">🏎️ Pilotos registrados:</span>
           <div class="pilot-list" id="pilot-list"></div>
         </div>
         <div class="pilots-actions">
@@ -406,7 +406,7 @@
   </section>
 
   <!-- TABLERO RETRO -->
-  <section id="retro" class="section section-alt">
+  <section id="retro" class="section section-alt" hidden>
     <div class="container">
       <h2>🏎️ Tablero — Retro Mario Kart</h2>
       <p class="section-lead">
@@ -415,7 +415,7 @@
 
       <!-- (cuando el tablero está inactivo, ocultamos el grid completo en vez de mostrar un aviso) -->
 
-      <div class="board" id="board">
+      <div class="board" id="board" hidden>
         <!-- 5 · Plátanos pasado -->
         <article class="card-column color-banana-past">
           <header>
@@ -507,7 +507,7 @@
         </article>
       </div>
 
-      <div class="board-actions" id="board-actions">
+      <div class="board-actions" id="board-actions" hidden>
         <button id="export-btn" class="btn btn-secondary admin-only" hidden>📊 Exportar a Excel</button>
         <button id="clear-btn" class="btn btn-danger admin-only" hidden>🗑️ Borrar tablero</button>
       </div>
