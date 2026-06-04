@@ -638,6 +638,8 @@ joinForm.addEventListener('submit', async e => {
   closeJoinModal();
   toast(`¡Bienvenido a la pista, ${character} ${name}! 🏁`, 'success');
   window.sfxStart && window.sfxStart();
+  // El clic en "A correr" es un gesto válido del usuario → arranca la música de fondo.
+  try { startMusic(); } catch {}
 });
 
 joinModal.addEventListener('click', e => {
@@ -806,6 +808,8 @@ document.addEventListener('click', e => {
   if (closer) { closeAnyModal(closer.dataset.closes); return; }
 });
 document.querySelectorAll('.modal-backdrop').forEach(bd => {
+  // El modal de unirse y el de admin requieren completar el formulario — no se cierran con clic fuera.
+  if (bd.id === 'join-modal' || bd.id === 'admin-modal') return;
   bd.addEventListener('click', e => {
     if (e.target === bd) bd.hidden = true;
   });
@@ -1496,29 +1500,8 @@ musicBtn.addEventListener('click', () => {
   if (musicOn) stopMusic(); else startMusic();
 });
 
-/* Autoarranque de música al cargar la página.
-   Si el navegador bloquea el autoplay sin gesto del usuario,
-   arrancamos en el primer clic/tecla en la página. */
-(function autoStartMusic() {
-  const tryStart = () => { try { startMusic(); } catch {} };
-  // 1) Intento inmediato (funciona si el usuario ya interactuó con el sitio,
-  //    p.ej. al recargar tras haber pulsado algo antes).
-  setTimeout(() => {
-    tryStart();
-    if (!musicOn || (audioCtx && audioCtx.state !== 'running')) {
-      // 2) Fallback: primer gesto del usuario en la página.
-      const onFirstGesture = () => {
-        tryStart();
-        document.removeEventListener('click',   onFirstGesture, true);
-        document.removeEventListener('keydown', onFirstGesture, true);
-        document.removeEventListener('touchstart', onFirstGesture, true);
-      };
-      document.addEventListener('click',     onFirstGesture, true);
-      document.addEventListener('keydown',   onFirstGesture, true);
-      document.addEventListener('touchstart',onFirstGesture, true);
-    }
-  }, 50);
-})();
+/* Autoarranque de música: solo si el usuario ya había activado la música antes
+   (la primera vez se arranca al pulsar "¡A correr!" en el modal de unirse). */
 
 /* SFX cortos (también Web Audio) */
 function sfx(notes, type = 'square', baseGain = 0.15) {
