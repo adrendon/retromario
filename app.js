@@ -246,6 +246,7 @@ async function loadInitial() {
     objective = typeof s.objective === 'string' ? s.objective : '';
     moods   = Array.isArray(s.moods) ? s.moods : [];
     actions = Array.isArray(s.actions) ? s.actions : [];
+    applyBoardActive(!!s.boardActive);
     if (Array.isArray(s.steps)) applyStepsFromServer(s.steps);
   } else {
     cards  = normalizeCards(
@@ -1220,10 +1221,10 @@ function connectSSE() {
     objective = typeof s.objective === 'string' ? s.objective : '';
     moods   = Array.isArray(s.moods) ? s.moods : [];
     actions = Array.isArray(s.actions) ? s.actions : [];
+    applyBoardActive(!!s.boardActive);
     if (Array.isArray(s.steps)) applyStepsFromServer(s.steps);
     if (s.race) applyRaceState(s.race);
     if (typeof s.sprint === 'string') applySprint(s.sprint);
-    if (typeof s.boardActive === 'boolean') applyBoardActive(s.boardActive);
     if (s.timer) applyTimerState(s.timer);
     if (typeof s.adminTaken === 'boolean') applyAdminTaken(s.adminTaken);
     renderAll(); renderPilots(); renderObjective(); renderMoods(); renderActions();
@@ -1931,18 +1932,22 @@ refreshStepsAdminLock();
 /* ====================================================================
    TABLERO: ocultar TODO el grid cuando no está activo (sin mensajes)
    ==================================================================== */
+const boardSectionEl = document.getElementById('retro');
 const boardGridEl    = document.getElementById('board');
 const boardActionsEl = document.getElementById('board-actions');
 const _origApplyBoardActive = applyBoardActive;
 applyBoardActive = function (active) {
   _origApplyBoardActive(active);
-  // Ocultamos el grid y las acciones cuando no está activo
+  // Ocultamos toda la sección del tablero hasta que el admin active el paso 5.
+  if (boardSectionEl) boardSectionEl.hidden = !boardActive;
   if (boardGridEl)    boardGridEl.hidden    = !boardActive;
-  if (boardActionsEl) boardActionsEl.hidden = !boardActive && !isAdmin;
+  if (boardActionsEl) boardActionsEl.hidden = !boardActive || !isAdmin;
 };
 // También cuando cambia el rol admin
 const _origRefreshAdminUI2 = refreshAdminUI;
 refreshAdminUI = function () {
   _origRefreshAdminUI2();
-  if (boardActionsEl) boardActionsEl.hidden = !boardActive && !isAdmin;
+  if (boardSectionEl) boardSectionEl.hidden = !boardActive;
+  if (boardGridEl)    boardGridEl.hidden    = !boardActive;
+  if (boardActionsEl) boardActionsEl.hidden = !boardActive || !isAdmin;
 };
