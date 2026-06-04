@@ -1,0 +1,13 @@
+{
+  "name": "mario-kart-retro",
+  "version": "1.0.0",
+  "description": "Retrospectiva Mario Kart — servidor con sincronización en tiempo real (sin dependencias).",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

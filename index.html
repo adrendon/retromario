@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>🏁 Retrospectiva Mario Kart 🚗</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <!-- MODAL: Login del admin (PIN + piloto) -->
+  <div class="modal-backdrop" id="admin-modal" role="dialog" aria-modal="true" aria-labelledby="admin-title" hidden>
+    <div class="modal">
+      <span class="modal-confetti" aria-hidden="true">👑</span>
+      <h2 id="admin-title">🔑 Modo admin</h2>
+      <p class="modal-lead">
+        Ingresa el PIN para tomar el control de la retro. También puedes
+        elegir tu personaje y nombre si todavía no te has unido a la pista.
+      </p>
+
+      <form id="admin-form" class="join-form" autocomplete="off">
+        <label class="field">
+          <span>PIN del admin</span>
+          <input type="password" id="admin-pin" maxlength="32" placeholder="password" required />
+        </label>
+
+        <label class="field">
+          <span>Tu nombre</span>
+          <input type="text" id="admin-name" maxlength="24" placeholder="Ej. Ana, Carlos…" />
+        </label>
+
+        <fieldset class="character-picker">
+          <legend>Elige tu personaje</legend>
+          <div class="character-grid" id="admin-character-grid"></div>
+        </fieldset>
+
+        <div id="admin-modal-error" class="admin-modal-error" hidden></div>
+
+        <div class="modal-actions" style="gap:8px; flex-wrap:wrap;">
+          <button type="button" class="btn-mini" id="admin-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary">👑 Entrar como admin</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Únete a la carrera -->
+  <div class="modal-backdrop" id="join-modal" role="dialog" aria-modal="true" aria-labelledby="join-title" hidden>
+    <div class="modal">
+      <span class="modal-confetti" aria-hidden="true">🎉</span>
+      <h2 id="join-title">🏁 ¡Únete a la carrera!</h2>
+      <p class="modal-lead">
+        Elige tu personaje y escribe tu nombre para subirte al kart.
+        Así tus compañeros sabrán quién escribió cada tarjeta.
+      </p>
+
+      <form id="join-form" class="join-form" autocomplete="off">
+        <label class="field">
+          <span>Tu nombre</span>
+          <input type="text" id="pilot-name" maxlength="24" placeholder="Ej. Ana, Carlos…" required />
+        </label>
+
+        <fieldset class="character-picker">
+          <legend>Elige tu personaje</legend>
+          <div class="character-grid" id="character-grid"><!-- JS rellena --></div>
+        </fieldset>
+
+        <div class="modal-actions">
+          <button type="submit" class="btn btn-primary">🚦 ¡A correr!</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: Rompehielos · ¿Cómo te sientes hoy? -->
+  <div class="modal-backdrop" id="mood-modal" role="dialog" aria-modal="true" aria-labelledby="mood-title" hidden>
+    <div class="modal">
+      <span class="modal-confetti" aria-hidden="true">🧊</span>
+      <h2 id="mood-title">🎮 ¿Cómo te sientes hoy?</h2>
+      <p class="modal-lead">
+        Elige el emoji que mejor represente tu ánimo y compártelo con el equipo.
+      </p>
+
+      <form id="mood-form" autocomplete="off">
+        <div class="mood-grid" id="mood-grid"><!-- JS rellena --></div>
+
+        <div class="modal-actions" style="gap:8px; flex-wrap:wrap;">
+          <button type="button" class="btn btn-secondary" id="mood-clear-btn">🧹 Quitar mi ánimo</button>
+          <button type="button" class="btn-mini" id="mood-cancel-btn">Cancelar</button>
+          <button type="submit" class="btn btn-primary">✅ Compartir</button>
+        </div>
+      </form>
+
+      <div class="moods-wall" id="moods-wall" aria-live="polite" style="margin-top:18px"></div>
+    </div>
+  </div>
+
+  <!-- MODAL: Reproductor de música -->
+  <div class="modal-backdrop" id="music-modal" role="dialog" aria-modal="true" aria-labelledby="music-title" hidden>
+    <div class="modal" style="max-width:420px">
+      <span class="modal-confetti" aria-hidden="true">🎵</span>
+      <h2 id="music-title">🎶 Reproductor de carrera</h2>
+      <p class="modal-lead">
+        Música chiptune al estilo Mario Kart, generada en vivo en tu navegador.
+        Dale play y comencemos la retro con buen ritmo.
+      </p>
+
+      <div class="music-player">
+        <button type="button" id="music-modal-toggle" class="btn btn-primary btn-music-big">▶️ Reproducir</button>
+        <div class="music-meta">
+          <span id="music-track-name">Retro Kart Theme · 8-bit</span>
+          <span id="music-status">En pausa</span>
+        </div>
+        <label class="music-volume">
+          Volumen
+          <input type="range" id="music-volume" min="0" max="100" value="40" />
+        </label>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-mini" data-closes="music-modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Objetivo de la retro -->
+  <div class="modal-backdrop" id="objective-modal" role="dialog" aria-modal="true" aria-labelledby="objective-title" hidden>
+    <div class="modal">
+      <span class="modal-confetti" aria-hidden="true">🎯</span>
+      <h2 id="objective-title">🎯 Objetivo de la retro</h2>
+      <p class="modal-lead">
+        Escribe el objetivo del sprint para que todo el equipo lo tenga visible.
+        Se sincroniza en tiempo real con tus compañeros.
+      </p>
+
+      <div class="objective-editor">
+        <textarea id="objective-text" rows="4" maxlength="800"
+          placeholder="Ej: Mejorar nuestra velocidad de entrega y anticipar los obstáculos del próximo sprint."></textarea>
+        <div class="objective-actions">
+          <button type="button" class="btn btn-primary" id="objective-save">💾 Guardar</button>
+          <button type="button" class="btn-mini" id="objective-copy">📋 Copiar</button>
+          <span class="objective-status" id="objective-status"></span>
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-mini" data-closes="objective-modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Proponer y votar acciones -->
+  <div class="modal-backdrop" id="actions-modal" role="dialog" aria-modal="true" aria-labelledby="actions-title" hidden>
+    <div class="modal" style="max-width:560px">
+      <span class="modal-confetti" aria-hidden="true">🏆</span>
+      <h2 id="actions-title">🏆 Acciones del próximo sprint</h2>
+      <p class="modal-lead">
+        Propongan hasta <strong>5 acciones</strong>. Todos los pilotos pueden votar las que quieran.
+      </p>
+
+      <div class="actions-panel" id="actions-panel">
+        <form class="actions-form" id="actions-form" autocomplete="off">
+          <input id="action-input" type="text" maxlength="240" placeholder="Escribe una acción para el próximo sprint…" />
+          <button type="submit" class="btn btn-primary">➕ Añadir</button>
+        </form>
+        <p class="actions-meta"><span id="actions-count">0</span> / 5 acciones · <button type="button" class="btn-mini" id="actions-clear">🗑️ Borrar todas</button></p>
+        <ul class="actions-list" id="actions-list" aria-live="polite"></ul>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn-mini" data-closes="actions-modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- HEADER -->
+  <header class="hero">
+    <div class="hero-bg">
+      <div class="road"></div>
+      <div class="cloud cloud-1">☁️</div>
+      <div class="cloud cloud-2">☁️</div>
+      <div class="cloud cloud-3">☁️</div>
+      <div class="hill hill-1"></div>
+      <div class="hill hill-2"></div>
+    </div>
+
+    <div class="hero-content">
+      <span class="badge">Retrospectiva Sprint #<span id="sprint-number" data-default="245">245</span></span>
+      <h1>🏁 Retro Mario Kart <span class="kart">🚗</span></h1>
+      <p class="subtitle">
+        ¿No estás contento con la velocidad en el equipo? Prepárate para una
+        retrospectiva tan imprevisible como una partida de Mario Kart.
+        Esta vez será tanto una <strong>“futurespectiva”</strong> como una retrospectiva.
+      </p>
+
+      <div class="hero-cta">
+        <a href="#como-hacerlo" class="btn btn-primary">🚦 ¡Empezar carrera!</a>
+        <a href="#retro" class="btn btn-secondary">📝 Ir a la retro</a>
+      </div>
+
+      <!-- Pilotos en pista -->
+      <div class="pilots-bar" id="pilots-bar">
+        <div class="pilots-info">
+          <span class="pilots-title">🏎️ Pilotos en pista:</span>
+          <div class="pilot-list" id="pilot-list"></div>
+        </div>
+        <div class="pilots-actions">
+          <span class="current-pilot" id="current-pilot" hidden></span>
+          <button class="btn-mini" id="music-toggle-btn" type="button" aria-pressed="false">⏸️ Pausar</button>
+          <button class="btn-mini" id="admin-toggle-btn" type="button">🔑 Modo admin</button>
+          <span class="admin-tag" id="admin-tag" hidden>👑 Admin</span>
+        </div>
+      </div>
+
+      <!-- Panel del admin (solo visible si soy admin) -->
+      <div class="admin-panel" id="admin-panel" hidden>
+        <div class="admin-row">
+          <label class="admin-field">
+            <span>Sprint #</span>
+            <input type="text" id="admin-sprint" maxlength="10" placeholder="245" />
+          </label>
+          <button class="btn-mini" id="admin-sprint-save">💾 Guardar sprint</button>
+        </div>
+        <div class="admin-row">
+          <label class="admin-field">
+            <span>Duración del tablero</span>
+            <select id="admin-timer-duration">
+              <option value="180">3 minutos</option>
+              <option value="300" selected>5 minutos</option>
+              <option value="600">10 minutos</option>
+            </select>
+          </label>
+          <button class="btn-mini" id="admin-board-toggle">🟢 Activar tablero</button>
+          <button class="btn-mini" id="admin-timer-pause" disabled>⏸️ Pausar</button>
+          <button class="btn-mini" id="admin-timer-reset">🔄 Reset</button>
+          <button class="btn-mini" id="admin-release">🚪 Salir admin</button>
+        </div>
+      </div>
+
+      <!-- Cronómetro del tablero (visible para todos cuando hay tiempo configurado) -->
+      <div class="board-timer" id="board-timer" hidden>
+        <span class="timer-icon">⏱️</span>
+        <span class="timer-label">Tiempo del tablero:</span>
+        <span class="timer-clock" id="timer-clock">--:--</span>
+        <span class="timer-state" id="timer-state"></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- CÓMO HACERLO -->
+  <section id="como-hacerlo" class="section">
+    <div class="container">
+      <h2>🛣️ Cómo hacerlo</h2>
+      <p class="section-lead">
+        Sigue estos 12 pasos para guiar al equipo a través de la pista. Marca cada paso a medida que lo completes.
+      </p>
+
+      <ol class="steps">
+        <li class="step">
+          <label>
+            <input type="checkbox" class="step-check" />
+            <span class="step-num">1</span>
+            <div class="step-content">
+              <h3>🎬 Da la bienvenida al equipo (5 min)</h3>
+              <p>Pon música de Mario Kart, muestra la pista y explica que hoy correremos juntos como un equipo.</p>
+            </div>
+          </label>
+        </li>
+
+        <li class="step">
+          <label>
+            <input type="checkbox" class="step-check" />
+            <span class="step-num">2</span>
+            <div class="step-content">
+              <h3>🎯 Define el objetivo de la retro (3 min)</h3>
+              <p>Recuerda que buscamos mejorar nuestra velocidad y anticipar obstáculos del próximo sprint.</p>
+              <button type="button" class="btn-mini step-action" data-opens="objective-modal">🎯 Definir objetivo</button>
+            </div>
+          </label>
+        </li>
+
+        <li class="step">
+          <label>
+            <input type="checkbox" class="step-check" />
+            <span class="step-num">3</span>
+            <div class="step-content">
+              <h3>🧊 Rompehielo: elige tu personaje (5 min)</h3>
+              <p>Cada persona dice qué personaje de Mario Kart se siente hoy y por qué (Mario optimista, Bowser frustrado, Yoshi entusiasta…).</p>
+              <button type="button" class="btn-mini step-action" data-opens="mood-modal">🎮 Elegir mi ánimo</button>
+            </div>
+          </label>
+        </li>
+
+        <li class="step">
+          <label>
+            <input type="checkbox" class="step-check" />
+            <span class="step-num">4</span>
+            <div class="step-content">
+              <h3>🏁 Repasa el sprint anterior (5 min)</h3>
+              <p>Muestra los objetivos, métricas y eventos clave del sprint que termina.</p>
+            </div>
+          </label>
+        </li>
+
+        <li class="step">
+          <label>
+            <input type="checkbox" class="step-check" />
+            <span class="step-num">5</span>
+            <div class="step-content">
+              <h3>🍌 Pregunta 1 — Plátanos del pasado (5 min)</h3>
+              <p>“¿En qué plátanos nos resbalamos?” Cada persona escribe en qué obstáculos o errores tropezamos.</p>
+            </div>
+          </label>
+        </li>
+
+        <li class="step">
+          <label>
+            <input type="checkbox" class="step-check" />
+            <span class="step-num">6</span>
+            <div class="step-content">
+              <h3>⭐ Pregunta 2 — Potenciador que nos dio ventaja (5 min)</h3>
+              <p>“¿Qué potenciador nos dio una ventaja?” Anota qué prácticas, herramientas o decisiones nos aceleraron.</p>
+            </div>
+          </label>
+        </li>
+
+        <li class="step">
+          <label>
+            <input type="checkbox" class="step-check" />
+            <span class="step-num">7</span>
+            <div class="step-content">
+              <h3>🛤️ Pregunta 3 — Atajos que funcionaron (5 min)</h3>
+              <p>“¿Qué atajos nos ayudaron a la victoria?” Identifica caminos cortos que descubrimos durante el sprint.</p>
+            </div>
+          </label>
+        </li>
+
+        <li class="step">
+          <label>
+            <input type="checkbox" class="step-check" />
+            <span class="step-num">8</span>
+            <div class="step-content">
+              <h3>⚠️ Pregunta 4 — Plátanos futuros (5 min)</h3>
+              <p>“¿Con qué plátanos tenemos que tener cuidado en la ruta?” Anticipa riesgos del próximo sprint.</p>
+            </div>
+          </label>
+        </li>
+
+        <li class="step">
+          <label>
+            <input type="checkbox" class="step-check" />
+            <span class="step-num">9</span>
+            <div class="step-content">
+              <h3>🚀 Pregunta 5 — Potenciador para la victoria (5 min)</h3>
+              <p>“¿Qué potenciador podríamos tomar para asegurar nuestra victoria?” Define qué necesitamos activar.</p>
+            </div>
+          </label>
+        </li>
+
+        <li class="step">
+          <label>
+            <input type="checkbox" class="step-check" />
+            <span class="step-num">10</span>
+            <div class="step-content">
+              <h3>🗺️ Pregunta 6 — Abreviaturas (5 min)</h3>
+              <p>“¿Qué abreviatura podríamos usar?” ¿Qué camino corto podemos diseñar para el próximo sprint?</p>
+            </div>
+          </label>
+        </li>
+
+        <li class="step">
+          <label>
+            <input type="checkbox" class="step-check" />
+            <span class="step-num">11</span>
+            <div class="step-content">
+              <h3>🏆 Vota y prioriza acciones (10 min)</h3>
+              <p>Agrupa ideas similares, propone hasta 5 acciones concretas y voten cuáles llevan al próximo sprint.</p>
+              <button type="button" class="btn-mini step-action" data-opens="actions-modal">🏆 Proponer y votar</button>
+            </div>
+          </label>
+        </li>
+
+        <li class="step">
+          <label>
+            <input type="checkbox" class="step-check" />
+            <span class="step-num">12</span>
+            <div class="step-content">
+              <h3>🎉 Cierra con un check-out (3 min)</h3>
+              <p>Cada persona comparte una palabra sobre cómo se va de la retro. ¡Vuelta de honor y a la próxima carrera!</p>
+            </div>
+          </label>
+        </li>
+      </ol>
+
+      <div class="progress-wrapper">
+        <div class="progress-label">
+          Progreso: <span id="progress-text">0 / 12 pasos completados</span>
+        </div>
+        <div class="progress-bar">
+          <div class="progress-fill" id="progress-fill"></div>
+          <span class="progress-kart" id="progress-kart">🚗</span>
+          <span class="finish-flag" aria-hidden="true">🏁</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TABLERO RETRO -->
+  <section id="retro" class="section section-alt">
+    <div class="container">
+      <h2>🏎️ Tablero — Retro Mario Kart</h2>
+      <p class="section-lead">
+        Cada participante puede añadir tarjetas en cada categoría en tiempo real.
+      </p>
+
+      <!-- (cuando el tablero está inactivo, ocultamos el grid completo en vez de mostrar un aviso) -->
+
+      <div class="board" id="board">
+        <!-- 5 · Plátanos pasado -->
+        <article class="card-column color-banana-past">
+          <header>
+            <span class="step-badge">Paso 5</span>
+            <span class="col-icon">🍌</span>
+            <h3>Plátanos donde resbalamos</h3>
+            <p>¿En qué plátanos nos resbalamos?</p>
+          </header>
+          <form class="add-form" data-cat="banana-past">
+            <input type="text" maxlength="200" placeholder="Escribe en qué tropezamos…" required />
+            <button type="submit" title="Añadir tarjeta">Añadir</button>
+          </form>
+          <ul class="card-list" data-cat="banana-past" aria-live="polite"></ul>
+        </article>
+
+        <!-- 6 · Potenciador pasado -->
+        <article class="card-column color-power-past">
+          <header>
+            <span class="step-badge">Paso 6</span>
+            <span class="col-icon">⭐</span>
+            <h3>Potenciador que nos dio ventaja</h3>
+            <p>¿Qué potenciador nos dio una ventaja?</p>
+          </header>
+          <form class="add-form" data-cat="power-past">
+            <input type="text" maxlength="200" placeholder="Escribe qué nos aceleró…" required />
+            <button type="submit" title="Añadir tarjeta">Añadir</button>
+          </form>
+          <ul class="card-list" data-cat="power-past" aria-live="polite"></ul>
+        </article>
+
+        <!-- 7 · Atajos pasado -->
+        <article class="card-column color-shortcut-past">
+          <header>
+            <span class="step-badge">Paso 7</span>
+            <span class="col-icon">🛤️</span>
+            <h3>Atajos a la victoria</h3>
+            <p>¿Qué atajos nos ayudaron a la victoria?</p>
+          </header>
+          <form class="add-form" data-cat="shortcut-past">
+            <input type="text" maxlength="200" placeholder="Escribe un atajo que funcionó…" required />
+            <button type="submit" title="Añadir tarjeta">Añadir</button>
+          </form>
+          <ul class="card-list" data-cat="shortcut-past" aria-live="polite"></ul>
+        </article>
+
+        <!-- 8 · Plátanos futuro -->
+        <article class="card-column color-banana-future">
+          <header>
+            <span class="step-badge">Paso 8</span>
+            <span class="col-icon">🍌</span>
+            <h3>Plátanos en la ruta</h3>
+            <p>¿Con qué plátanos tenemos que tener cuidado en la ruta?</p>
+          </header>
+          <form class="add-form" data-cat="banana-future">
+            <input type="text" maxlength="200" placeholder="Escribe un riesgo futuro…" required />
+            <button type="submit" title="Añadir tarjeta">Añadir</button>
+          </form>
+          <ul class="card-list" data-cat="banana-future" aria-live="polite"></ul>
+        </article>
+
+        <!-- 9 · Potenciador futuro -->
+        <article class="card-column color-power-future">
+          <header>
+            <span class="step-badge">Paso 9</span>
+            <span class="col-icon">🚀</span>
+            <h3>Potenciador para la victoria</h3>
+            <p>¿Qué potenciador podríamos tomar para asegurar nuestra victoria?</p>
+          </header>
+          <form class="add-form" data-cat="power-future">
+            <input type="text" maxlength="200" placeholder="Escribe un potenciador a activar…" required />
+            <button type="submit" title="Añadir tarjeta">Añadir</button>
+          </form>
+          <ul class="card-list" data-cat="power-future" aria-live="polite"></ul>
+        </article>
+
+        <!-- 10 · Abreviatura -->
+        <article class="card-column color-shortcut-future">
+          <header>
+            <span class="step-badge">Paso 10</span>
+            <span class="col-icon">🗺️</span>
+            <h3>Abreviatura</h3>
+            <p>¿Qué abreviatura podríamos usar?</p>
+          </header>
+          <form class="add-form" data-cat="shortcut-future">
+            <input type="text" maxlength="200" placeholder="Escribe un atajo a explorar…" required />
+            <button type="submit" title="Añadir tarjeta">Añadir</button>
+          </form>
+          <ul class="card-list" data-cat="shortcut-future" aria-live="polite"></ul>
+        </article>
+      </div>
+
+      <div class="board-actions" id="board-actions">
+        <button id="export-btn" class="btn btn-secondary admin-only" hidden>📊 Exportar a Excel</button>
+        <button id="clear-btn" class="btn btn-danger admin-only" hidden>🗑️ Borrar tablero</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- MINI-CARRERA -->
+  <section id="mini-race" class="section" hidden>
+    <div class="container">
+      <h2>🏁 Mini-carrera del tablero</h2>
+
+      <div class="race-panel">
+        <div class="race-track" id="race-track">
+          <div class="race-lane race-lane-finish" aria-hidden="true">🏁</div>
+          <div class="race-lanes" id="race-lanes"></div>
+        </div>
+
+        <div class="race-status" id="race-status" aria-live="polite" hidden>
+          <span class="status-msg" id="race-msg"></span>
+        </div>
+
+        <div class="race-results" id="race-results" hidden>
+          <h3>🏆 Podio</h3>
+          <div class="podium-stage" id="podium-stage">
+            <div class="podium-spot podium-silver" data-place="2">
+              <div class="podium-pilot" id="podium-2"></div>
+              <div class="podium-block"><span class="podium-num">2</span></div>
+            </div>
+            <div class="podium-spot podium-gold" data-place="1">
+              <div class="podium-pilot" id="podium-1"></div>
+              <div class="podium-block"><span class="podium-num">1</span></div>
+            </div>
+            <div class="podium-spot podium-bronze" data-place="3">
+              <div class="podium-pilot" id="podium-3"></div>
+              <div class="podium-block"><span class="podium-num">3</span></div>
+            </div>
+          </div>
+          <div class="losers" id="podium-losers" hidden>
+            <h4>😭 Fuera del podio</h4>
+            <ul class="losers-list" id="losers-list"></ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Toasts -->
+  <div class="toast-stack" id="toast-stack" aria-live="polite" aria-atomic="true"></div>
+
+  <footer class="footer">
+    <p>🏁 Retrospectiva Mario Kart · Sprint #<span id="sprint-number-footer">245</span></p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
