@@ -283,8 +283,10 @@ async function registerPilot(pilot) {
   if (SERVER_MODE) {
     if (!clientId) {
       // Intenta tras conectarse al SSE
-      await waitForClientId(3000);
-      if (!clientId) throw new Error('Sin clientId (SSE no conectado)');
+      await waitForClientId(8000);
+      // Si aún no hay clientId, no es un error: el handler 'hello' del SSE
+      // volverá a llamar a registerPilot automáticamente cuando se conecte.
+      if (!clientId) return;
     }
     const r = await fetch('/api/pilots', {
       method: 'POST',
@@ -628,11 +630,8 @@ joinForm.addEventListener('submit', async e => {
   currentPilot = { name, character };
   writeJSON(PILOT_KEY, currentPilot);
   document.body.classList.remove('no-pilot');
-  try {
-    await registerPilot(currentPilot);
-  } catch {
-    toast('No pude avisar al servidor, intenta de nuevo', 'warn');
-  }
+  // Si SSE aún no conectó, el handler 'hello' re-registrará al piloto automáticamente.
+  registerPilot(currentPilot).catch(() => {});
   renderPilots();
   if (typeof renderMoods === 'function') renderMoods();
   if (typeof renderActions === 'function') renderActions();
