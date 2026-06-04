@@ -8,6 +8,7 @@ const STORAGE_KEY = 'mario-kart-retro-cards-v2';
 const STEPS_KEY   = 'mario-kart-retro-steps-v1';
 const PILOT_KEY   = 'mario-kart-retro-current-pilot-v1';
 const PILOTS_KEY  = 'mario-kart-retro-pilots-v1';
+const CLIENT_ID_KEY = 'mario-kart-retro-client-id-v1';
 
 const CATEGORIES = [
   'banana-future','shortcut-future','power-future',
@@ -53,6 +54,16 @@ function readJSON(key, fallback) {
 }
 function writeJSON(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
 
+function readSession(key, fallback) {
+  try {
+    const v = sessionStorage.getItem(key);
+    return v === null || v === undefined ? fallback : v;
+  } catch { return fallback; }
+}
+function writeSession(key, value) {
+  try { sessionStorage.setItem(key, String(value)); } catch {}
+}
+
 function cryptoId() {
   if (window.crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
   return 'c_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -85,7 +96,8 @@ const MOODS = [
 
 let currentPilot = readJSON(PILOT_KEY, null); // identidad local del usuario
 if (!currentPilot) document.body.classList.add('no-pilot');
-let clientId = null;                          // se obtiene del SSE al conectar
+let clientId = readSession(CLIENT_ID_KEY, null) || cryptoId();
+writeSession(CLIENT_ID_KEY, clientId);       // estable por pestaña para sobrevivir reconexiones SSE
 
 /* ---------- Render: tarjetas ---------- */
 function renderCategory(cat) {
@@ -230,9 +242,11 @@ async function loadInitial() {
     const s = await r.json();
     cards  = normalizeCards(s.cards);
     pilots = Array.isArray(s.pilots) ? s.pilots : [];
+    allPilots = Array.isArray(s.allPilots) ? s.allPilots : pilots.slice();
     objective = typeof s.objective === 'string' ? s.objective : '';
     moods   = Array.isArray(s.moods) ? s.moods : [];
     actions = Array.isArray(s.actions) ? s.actions : [];
+    applyBoardActive(!!s.boardActive);
     if (Array.isArray(s.steps)) applyStepsFromServer(s.steps);
   } else {
     cards  = normalizeCards(
@@ -271,7 +285,11 @@ async function addCard(cat, payload) {
 
 async function clearBoard() {
   if (SERVER_MODE) {
-    await fetch('/api/clear', { method: 'POST' });
+    await fetch('/api/clear', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Client-Id': clientId || '' },
+      body: JSON.stringify({ clientId })
+    });
   } else {
     CATEGORIES.forEach(c => cards[c] = []);
     writeJSON(STORAGE_KEY, cards);
@@ -1181,12 +1199,14 @@ if (actionsClearBtn) {
 let sseRetry = 0;
 function connectSSE() {
   if (!SERVER_MODE || typeof EventSource === 'undefined') return;
-  const es = new EventSource('/api/stream');
+  const streamUrl = `/api/stream?clientId=${encodeURIComponent(clientId || cryptoId())}`;
+  const es = new EventSource(streamUrl);
 
   es.addEventListener('hello', e => {
     try {
       const { clientId: cid } = JSON.parse(e.data);
       clientId = cid;
+      writeSession(CLIENT_ID_KEY, clientId);
       sseRetry = 0;
       if (currentPilot) {
         registerPilot(currentPilot).catch(() => {});
@@ -1201,10 +1221,10 @@ function connectSSE() {
     objective = typeof s.objective === 'string' ? s.objective : '';
     moods   = Array.isArray(s.moods) ? s.moods : [];
     actions = Array.isArray(s.actions) ? s.actions : [];
+    applyBoardActive(!!s.boardActive);
     if (Array.isArray(s.steps)) applyStepsFromServer(s.steps);
     if (s.race) applyRaceState(s.race);
     if (typeof s.sprint === 'string') applySprint(s.sprint);
-    if (typeof s.boardActive === 'boolean') applyBoardActive(s.boardActive);
     if (s.timer) applyTimerState(s.timer);
     if (typeof s.adminTaken === 'boolean') applyAdminTaken(s.adminTaken);
     renderAll(); renderPilots(); renderObjective(); renderMoods(); renderActions();
@@ -1912,18 +1932,22 @@ refreshStepsAdminLock();
 /* ====================================================================
    TABLERO: ocultar TODO el grid cuando no está activo (sin mensajes)
    ==================================================================== */
+const boardSectionEl = document.getElementById('retro');
 const boardGridEl    = document.getElementById('board');
 const boardActionsEl = document.getElementById('board-actions');
 const _origApplyBoardActive = applyBoardActive;
 applyBoardActive = function (active) {
   _origApplyBoardActive(active);
-  // Ocultamos el grid y las acciones cuando no está activo
+  // Ocultamos toda la sección del tablero hasta que el admin active el paso 5.
+  if (boardSectionEl) boardSectionEl.hidden = !boardActive;
   if (boardGridEl)    boardGridEl.hidden    = !boardActive;
-  if (boardActionsEl) boardActionsEl.hidden = !boardActive && !isAdmin;
+  if (boardActionsEl) boardActionsEl.hidden = !boardActive || !isAdmin;
 };
 // También cuando cambia el rol admin
 const _origRefreshAdminUI2 = refreshAdminUI;
 refreshAdminUI = function () {
   _origRefreshAdminUI2();
-  if (boardActionsEl) boardActionsEl.hidden = !boardActive && !isAdmin;
+  if (boardSectionEl) boardSectionEl.hidden = !boardActive;
+  if (boardGridEl)    boardGridEl.hidden    = !boardActive;
+  if (boardActionsEl) boardActionsEl.hidden = !boardActive || !isAdmin;
 };
