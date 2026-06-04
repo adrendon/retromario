@@ -664,6 +664,15 @@ button { font-family: inherit; }
   animation: fadeIn .25s ease;
 }
 .modal-backdrop[hidden] { display: none; }
+
+/* Mientras el usuario no se haya unido, oculta TODO el contenido detrás del modal */
+body.no-pilot > header,
+body.no-pilot > section,
+body.no-pilot > footer,
+body.no-pilot > .toast-stack {
+  display: none !important;
+}
+body.no-pilot { background: #0b1727; }
 @keyframes fadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }

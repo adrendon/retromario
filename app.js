@@ -84,6 +84,7 @@ const MOODS = [
 ];
 
 let currentPilot = readJSON(PILOT_KEY, null); // identidad local del usuario
+if (!currentPilot) document.body.classList.add('no-pilot');
 let clientId = null;                          // se obtiene del SSE al conectar
 
 /* ---------- Render: tarjetas ---------- */
@@ -626,6 +627,7 @@ joinForm.addEventListener('submit', async e => {
 
   currentPilot = { name, character };
   writeJSON(PILOT_KEY, currentPilot);
+  document.body.classList.remove('no-pilot');
   try {
     await registerPilot(currentPilot);
   } catch {
@@ -1859,6 +1861,7 @@ if (adminForm) {
     if (name) {
       currentPilot = { name, character };
       writeJSON(PILOT_KEY, currentPilot);
+      document.body.classList.remove('no-pilot');
       try { await registerPilot(currentPilot); } catch {}
       renderPilots();
     }
