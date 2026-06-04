@@ -1973,6 +1973,7 @@ const _origApplyBoardActive = applyBoardActive;
 applyBoardActive = function (active) {
   _origApplyBoardActive(active);
   // Ocultamos toda la sección del tablero hasta que el admin active el paso 5.
+  document.body.classList.toggle('board-active', boardActive);
   if (boardSectionEl) boardSectionEl.hidden = !boardActive;
   if (boardGridEl)    boardGridEl.hidden    = !boardActive;
   if (boardActionsEl) boardActionsEl.hidden = !boardActive || !isAdmin;
@@ -1981,6 +1982,7 @@ applyBoardActive = function (active) {
 const _origRefreshAdminUI2 = refreshAdminUI;
 refreshAdminUI = function () {
   _origRefreshAdminUI2();
+  document.body.classList.toggle('board-active', boardActive);
   if (boardSectionEl) boardSectionEl.hidden = !boardActive;
   if (boardGridEl)    boardGridEl.hidden    = !boardActive;
   if (boardActionsEl) boardActionsEl.hidden = !boardActive || !isAdmin;
