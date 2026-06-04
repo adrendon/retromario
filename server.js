@@ -4,8 +4,7 @@
    - Sirve los estáticos (index.html, styles.css, app.js)
    - REST API para tarjetas, pilotos y pasos
    - SSE (/api/stream) en tiempo real
-   - Cuando un cliente cierra la página, su piloto sale de la lista
-   - Persistencia en data.json (tarjetas y pasos; pilotos = solo memoria)
+   - Estado 100% en memoria (se reinicia con el server)
    Run:  node server.js   (o  npm start)
    ========================================================= */
 
@@ -17,7 +16,6 @@ const crypto = require('crypto');
 const PORT      = Number(process.env.PORT) || 3000;
 const HOST      = process.env.HOST || '0.0.0.0';
 const ROOT      = __dirname;
-const DATA_FILE = path.join(ROOT, 'data.json');
 const ADMIN_PIN = String(process.env.MARIO_ADMIN_PIN || 'sitioBanco');
 
 const CATEGORIES = [
@@ -37,8 +35,7 @@ function emptyData() {
   };
 }
 
-let data = loadData();
-let saveTimer = null;
+let data = emptyData();
 
 // Admin actual (clientId). Solo uno a la vez. Memoria.
 let adminClientId = null;
@@ -134,53 +131,7 @@ function racePublicState() { return computeRace(); }
 
 function broadcastRace() { broadcast('race:update', racePublicState()); }
 
-function loadData() {
-  try {
-    const raw = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-    const s = emptyData();
-    if (raw.cards && typeof raw.cards === 'object') {
-      CATEGORIES.forEach(c => {
-        if (Array.isArray(raw.cards[c])) s.cards[c] = raw.cards[c];
-      });
-    }
-    if (Array.isArray(raw.steps)) s.steps = raw.steps;
-    if (typeof raw.objective === 'string') s.objective = raw.objective;
-    if (Array.isArray(raw.actions)) {
-      s.actions = raw.actions.map(a => ({
-        id: String(a.id || crypto.randomUUID()),
-        text: String(a.text || '').slice(0, 240),
-        author: String(a.author || '').slice(0, 32),
-        character: String(a.character || '').slice(0, 8),
-        ts: Number(a.ts) || Date.now(),
-        votes: (a.votes && typeof a.votes === 'object') ? a.votes : {}
-      })).slice(0, MAX_ACTIONS);
-    }
-    if (typeof raw.sprint === 'string' || typeof raw.sprint === 'number') {
-      s.sprint = String(raw.sprint).slice(0, 16);
-    }
-    if (typeof raw.boardActive === 'boolean') s.boardActive = raw.boardActive;
-    if (raw.timer && typeof raw.timer === 'object') {
-      s.timer = {
-        durationSec: Math.max(10, Math.min(60 * 60, Number(raw.timer.durationSec) || 300)),
-        startedAt: Number(raw.timer.startedAt) || 0,
-        elapsedAtPause: Math.max(0, Number(raw.timer.elapsedAtPause) || 0),
-        running: !!raw.timer.running
-      };
-    }
-    return s;
-  } catch {
-    return emptyData();
-  }
-}
-
-function saveData() {
-  clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    fs.writeFile(DATA_FILE, JSON.stringify(data, null, 2), err => {
-      if (err) console.error('No se pudo guardar data.json:', err.message);
-    });
-  }, 150);
-}
+function saveData() { /* no-op: estado solo en memoria */ }
 
 function getPilotsList() {
   // Lista única por nombre (si un piloto abre 2 pestañas no aparece duplicado)
@@ -255,7 +206,7 @@ function serveStatic(req, res, urlPath) {
   const full = path.join(ROOT, safe);
   if (!full.startsWith(ROOT)) { res.writeHead(403); return res.end('Forbidden'); }
   const base = path.basename(full);
-  if (base === 'data.json' || base === 'server.js' || base === 'package.json') {
+  if (base === 'server.js' || base === 'package.json') {
     res.writeHead(404); return res.end('Not found');
   }
 
@@ -663,7 +614,7 @@ server.listen(PORT, HOST, () => {
   const shown = HOST === '0.0.0.0' ? 'localhost' : HOST;
   console.log(`🏁 Retro Mario Kart corriendo en http://${shown}:${PORT}`);
   console.log(`   (accesible en la red local en http://<tu-ip>:${PORT})`);
-  console.log(`   Datos guardados en ${DATA_FILE}`);
+  console.log(`   Estado en memoria (no persistente)`);
 });
 
 process.on('SIGINT', () => { console.log('\n👋 Cerrando servidor…'); process.exit(0); });
