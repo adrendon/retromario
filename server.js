@@ -615,6 +615,13 @@ server.listen(PORT, HOST, () => {
   console.log(`🏁 Retro Mario Kart corriendo en http://${shown}:${PORT}`);
   console.log(`   (accesible en la red local en http://<tu-ip>:${PORT})`);
   console.log(`   Estado en memoria (no persistente)`);
+  console.log(`   ROOT = ${ROOT}`);
+  try {
+    const files = fs.readdirSync(ROOT);
+    console.log(`   Archivos en ROOT: ${files.join(', ')}`);
+  } catch (e) {
+    console.log(`   No pude leer ROOT: ${e.message}`);
+  }
 });
 
 process.on('SIGINT', () => { console.log('\n👋 Cerrando servidor…'); process.exit(0); });
