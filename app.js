@@ -8,6 +8,8 @@ const STORAGE_KEY = 'mario-kart-retro-cards-v2';
 const STEPS_KEY   = 'mario-kart-retro-steps-v1';
 const PILOT_KEY   = 'mario-kart-retro-current-pilot-v1';
 const PILOTS_KEY  = 'mario-kart-retro-pilots-v1';
+const CLIENT_ID_KEY = 'mario-kart-retro-client-id-v1';
+const ADMIN_SESSION_KEY = 'mario-kart-retro-admin-token-v1';
 
 const CATEGORIES = [
   'banana-future','shortcut-future','power-future',
@@ -53,6 +55,16 @@ function readJSON(key, fallback) {
 }
 function writeJSON(key, value) { localStorage.setItem(key, JSON.stringify(value)); }
 
+function readSession(key, fallback) {
+  try {
+    const v = sessionStorage.getItem(key);
+    return v === null || v === undefined ? fallback : v;
+  } catch { return fallback; }
+}
+function writeSession(key, value) {
+  try { sessionStorage.setItem(key, String(value)); } catch {}
+}
+
 function cryptoId() {
   if (window.crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
   return 'c_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -85,7 +97,9 @@ const MOODS = [
 
 let currentPilot = readJSON(PILOT_KEY, null); // identidad local del usuario
 if (!currentPilot) document.body.classList.add('no-pilot');
-let clientId = null;                          // se obtiene del SSE al conectar
+let clientId = readSession(CLIENT_ID_KEY, null) || cryptoId();
+writeSession(CLIENT_ID_KEY, clientId);       // estable por pestaña para sobrevivir reconexiones SSE
+let adminToken = readSession(ADMIN_SESSION_KEY, null);
 
 /* ---------- Render: tarjetas ---------- */
 function renderCategory(cat) {
@@ -164,7 +178,7 @@ function renderPilots() {
   if (pilots.length === 0) {
     const empty = document.createElement('span');
     empty.className = 'pilot-empty';
-    empty.textContent = 'Aún nadie en la pista…';
+    empty.textContent = 'Aún no hay pilotos registrados…';
     list.appendChild(empty);
   } else {
     pilots.forEach(p => {
@@ -224,16 +238,35 @@ function normalizeCards(raw) {
   return out;
 }
 
+function applyServerState(s, { render = true } = {}) {
+  cards  = normalizeCards(s.cards);
+  pilots = Array.isArray(s.pilots) ? s.pilots : [];
+  allPilots = Array.isArray(s.allPilots) ? s.allPilots : pilots.slice();
+  objective = typeof s.objective === 'string' ? s.objective : '';
+  moods   = Array.isArray(s.moods) ? s.moods : [];
+  actions = Array.isArray(s.actions) ? s.actions : [];
+
+  applyBoardActive(!!s.boardActive);
+  if (Array.isArray(s.steps)) applyStepsFromServer(s.steps);
+  if (s.race) applyRaceState(s.race);
+  if (typeof s.sprint === 'string') applySprint(s.sprint);
+  if (s.timer) applyTimerState(s.timer);
+  if (typeof s.adminTaken === 'boolean') applyAdminTaken(s.adminTaken);
+
+  if (render) {
+    renderAll();
+    renderPilots();
+    renderObjective();
+    renderMoods();
+    renderActions();
+  }
+}
+
 async function loadInitial() {
   if (SERVER_MODE) {
     const r = await fetch('/api/state');
     const s = await r.json();
-    cards  = normalizeCards(s.cards);
-    pilots = Array.isArray(s.pilots) ? s.pilots : [];
-    objective = typeof s.objective === 'string' ? s.objective : '';
-    moods   = Array.isArray(s.moods) ? s.moods : [];
-    actions = Array.isArray(s.actions) ? s.actions : [];
-    if (Array.isArray(s.steps)) applyStepsFromServer(s.steps);
+    applyServerState(s, { render: false });
   } else {
     cards  = normalizeCards(
       readJSON(STORAGE_KEY, null) || readJSON('mario-kart-retro-cards-v1', null) || {}
@@ -271,7 +304,11 @@ async function addCard(cat, payload) {
 
 async function clearBoard() {
   if (SERVER_MODE) {
-    await fetch('/api/clear', { method: 'POST' });
+    await fetch('/api/clear', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Client-Id': clientId || '' },
+      body: JSON.stringify({ clientId })
+    });
   } else {
     CATEGORIES.forEach(c => cards[c] = []);
     writeJSON(STORAGE_KEY, cards);
@@ -1181,33 +1218,23 @@ if (actionsClearBtn) {
 let sseRetry = 0;
 function connectSSE() {
   if (!SERVER_MODE || typeof EventSource === 'undefined') return;
-  const es = new EventSource('/api/stream');
+  const streamUrl = `/api/stream?clientId=${encodeURIComponent(clientId || cryptoId())}`;
+  const es = new EventSource(streamUrl);
 
   es.addEventListener('hello', e => {
     try {
       const { clientId: cid } = JSON.parse(e.data);
       clientId = cid;
+      writeSession(CLIENT_ID_KEY, clientId);
       sseRetry = 0;
       if (currentPilot) {
         registerPilot(currentPilot).catch(() => {});
       }
+      restoreAdminSession().catch(() => {});
     } catch {}
   });
   es.addEventListener('snapshot', e => {
-    const s = JSON.parse(e.data);
-    cards  = normalizeCards(s.cards);
-    pilots = Array.isArray(s.pilots) ? s.pilots : [];
-    allPilots = Array.isArray(s.allPilots) ? s.allPilots : pilots.slice();
-    objective = typeof s.objective === 'string' ? s.objective : '';
-    moods   = Array.isArray(s.moods) ? s.moods : [];
-    actions = Array.isArray(s.actions) ? s.actions : [];
-    if (Array.isArray(s.steps)) applyStepsFromServer(s.steps);
-    if (s.race) applyRaceState(s.race);
-    if (typeof s.sprint === 'string') applySprint(s.sprint);
-    if (typeof s.boardActive === 'boolean') applyBoardActive(s.boardActive);
-    if (s.timer) applyTimerState(s.timer);
-    if (typeof s.adminTaken === 'boolean') applyAdminTaken(s.adminTaken);
-    renderAll(); renderPilots(); renderObjective(); renderMoods(); renderActions();
+    try { applyServerState(JSON.parse(e.data)); } catch {}
   });
   es.addEventListener('card:add', e => {
     const { cat, card } = JSON.parse(e.data);
@@ -1275,27 +1302,24 @@ function connectSSE() {
   };
 }
 
-/* Fallback: cada 10s pedimos el estado completo por si SSE perdió algún evento
-   (Render free a veces corta la conexión SSE silenciosamente). */
+/* Fallback: pedimos el estado completo por si SSE perdió algún evento.
+   Render/proxies a veces dejan la conexión abierta pero no entregan eventos;
+   este poll evita que el tablero/cronómetro requiera recargar la página. */
 if (SERVER_MODE) {
   setInterval(async () => {
     try {
       const r = await fetch('/api/state');
       if (!r.ok) return;
       const s = await r.json();
-      if (Array.isArray(s.pilots)) {
-        const same = s.pilots.length === pilots.length &&
-                     s.pilots.every((p, i) => pilots[i] && p.name === pilots[i].name);
-        if (!same) { pilots = s.pilots; renderPilots(); }
-      }
-      if (Array.isArray(s.allPilots)) allPilots = s.allPilots;
+      applyServerState(s);
       // Si estábamos como currentPilot pero el server no nos tiene, re-registrar.
+      const serverPilots = Array.isArray(s.pilots) ? s.pilots : [];
       if (currentPilot && clientId &&
-          !s.pilots.some(p => p.name.toLowerCase() === currentPilot.name.toLowerCase())) {
+          !serverPilots.some(p => p.name.toLowerCase() === currentPilot.name.toLowerCase())) {
         registerPilot(currentPilot).catch(() => {});
       }
     } catch {}
-  }, 10000);
+  }, 3000);
 }
 
 /* ---------- Notificar al servidor cuando se cierra la pestaña ---------- */
@@ -1654,12 +1678,37 @@ function applyAdminTaken(taken) {
   refreshAdminUI();
 }
 
+function setAdminToken(token) {
+  adminToken = token || null;
+  if (adminToken) writeSession(ADMIN_SESSION_KEY, adminToken);
+  else { try { sessionStorage.removeItem(ADMIN_SESSION_KEY); } catch {} }
+}
+
 async function adminFetch(path, body) {
   return fetch(path, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Client-Id': clientId || '' },
-    body: JSON.stringify({ clientId, ...body })
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Client-Id': clientId || '',
+      'X-Admin-Token': adminToken || ''
+    },
+    body: JSON.stringify({ clientId, adminToken, ...body })
   });
+}
+
+async function restoreAdminSession() {
+  if (!SERVER_MODE || !clientId || !adminToken || isAdmin) return false;
+  try {
+    const r = await adminFetch('/api/admin/restore', {});
+    if (!r.ok) {
+      if (r.status === 403) setAdminToken(null);
+      return false;
+    }
+    isAdmin = true;
+    refreshAdminUI();
+    closeAdminModal();
+    return true;
+  } catch { return false; }
 }
 
 if (adminToggleBtn) {
@@ -1673,6 +1722,7 @@ if (adminReleaseBtn) {
   adminReleaseBtn.addEventListener('click', async () => {
     if (!SERVER_MODE || !clientId) return;
     try { await adminFetch('/api/admin/release', {}); } catch {}
+    setAdminToken(null);
     isAdmin = false;
     refreshAdminUI();
     toast('Saliste del modo admin', 'success');
@@ -1844,9 +1894,13 @@ function showAdminError(msg) {
 }
 if (adminCancelBtn) adminCancelBtn.addEventListener('click', closeAdminModal);
 
-// Si la URL es /admin (o termina con #admin), abre directo el modal de admin.
+// Si la URL es /admin (o termina con #admin), restaura sesión admin o abre el modal.
 if (/^\/admin\/?$/i.test(location.pathname) || location.hash === '#admin') {
-  setTimeout(openAdminModal, 100);
+  setTimeout(async () => {
+    if (!clientId) await waitForClientId(2000);
+    const restored = await restoreAdminSession();
+    if (!restored && !isAdmin) openAdminModal();
+  }, 100);
 }
 
 if (adminForm) {
@@ -1875,6 +1929,7 @@ if (adminForm) {
       const r = await adminFetch('/api/admin/claim', { pin });
       const out = await r.json().catch(() => ({}));
       if (!r.ok) { showAdminError(out.error || 'PIN incorrecto'); return; }
+      setAdminToken(out.adminToken || null);
       isAdmin = true;
       refreshAdminUI();
       closeAdminModal();
@@ -1912,18 +1967,24 @@ refreshStepsAdminLock();
 /* ====================================================================
    TABLERO: ocultar TODO el grid cuando no está activo (sin mensajes)
    ==================================================================== */
+const boardSectionEl = document.getElementById('retro');
 const boardGridEl    = document.getElementById('board');
 const boardActionsEl = document.getElementById('board-actions');
 const _origApplyBoardActive = applyBoardActive;
 applyBoardActive = function (active) {
   _origApplyBoardActive(active);
-  // Ocultamos el grid y las acciones cuando no está activo
+  // Ocultamos toda la sección del tablero hasta que el admin active el paso 5.
+  document.body.classList.toggle('board-active', boardActive);
+  if (boardSectionEl) boardSectionEl.hidden = !boardActive;
   if (boardGridEl)    boardGridEl.hidden    = !boardActive;
-  if (boardActionsEl) boardActionsEl.hidden = !boardActive && !isAdmin;
+  if (boardActionsEl) boardActionsEl.hidden = !boardActive || !isAdmin;
 };
 // También cuando cambia el rol admin
 const _origRefreshAdminUI2 = refreshAdminUI;
 refreshAdminUI = function () {
   _origRefreshAdminUI2();
-  if (boardActionsEl) boardActionsEl.hidden = !boardActive && !isAdmin;
+  document.body.classList.toggle('board-active', boardActive);
+  if (boardSectionEl) boardSectionEl.hidden = !boardActive;
+  if (boardGridEl)    boardGridEl.hidden    = !boardActive;
+  if (boardActionsEl) boardActionsEl.hidden = !boardActive || !isAdmin;
 };
