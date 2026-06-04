@@ -1387,6 +1387,16 @@ body:not(.is-admin) #actions-clear {
   display: none !important;
 }
 
+
+/* Board is locked until the admin activates step 5. Keep this in CSS so the
+   board cannot flash before app.js finishes loading. */
+body:not(.board-active) #retro,
+body:not(.board-active) #board,
+body:not(.board-active) #board-actions,
+body.board-active:not(.is-admin) #board-actions {
+  display: none !important;
+}
+
 /* Bulletproof: nada de admin se ve nunca si no eres admin (cubre casos donde
    el atributo `hidden` no se aplique a tiempo en Render). */
 body:not(.is-admin) #admin-toggle-btn,

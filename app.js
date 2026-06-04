@@ -9,6 +9,7 @@ const STEPS_KEY   = 'mario-kart-retro-steps-v1';
 const PILOT_KEY   = 'mario-kart-retro-current-pilot-v1';
 const PILOTS_KEY  = 'mario-kart-retro-pilots-v1';
 const CLIENT_ID_KEY = 'mario-kart-retro-client-id-v1';
+const ADMIN_SESSION_KEY = 'mario-kart-retro-admin-token-v1';
 
 const CATEGORIES = [
   'banana-future','shortcut-future','power-future',
@@ -98,6 +99,7 @@ let currentPilot = readJSON(PILOT_KEY, null); // identidad local del usuario
 if (!currentPilot) document.body.classList.add('no-pilot');
 let clientId = readSession(CLIENT_ID_KEY, null) || cryptoId();
 writeSession(CLIENT_ID_KEY, clientId);       // estable por pestaña para sobrevivir reconexiones SSE
+let adminToken = readSession(ADMIN_SESSION_KEY, null);
 
 /* ---------- Render: tarjetas ---------- */
 function renderCategory(cat) {
@@ -176,7 +178,7 @@ function renderPilots() {
   if (pilots.length === 0) {
     const empty = document.createElement('span');
     empty.className = 'pilot-empty';
-    empty.textContent = 'Aún nadie en la pista…';
+    empty.textContent = 'Aún no hay pilotos registrados…';
     list.appendChild(empty);
   } else {
     pilots.forEach(p => {
@@ -1211,6 +1213,7 @@ function connectSSE() {
       if (currentPilot) {
         registerPilot(currentPilot).catch(() => {});
       }
+      restoreAdminSession().catch(() => {});
     } catch {}
   });
   es.addEventListener('snapshot', e => {
@@ -1674,12 +1677,37 @@ function applyAdminTaken(taken) {
   refreshAdminUI();
 }
 
+function setAdminToken(token) {
+  adminToken = token || null;
+  if (adminToken) writeSession(ADMIN_SESSION_KEY, adminToken);
+  else { try { sessionStorage.removeItem(ADMIN_SESSION_KEY); } catch {} }
+}
+
 async function adminFetch(path, body) {
   return fetch(path, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Client-Id': clientId || '' },
-    body: JSON.stringify({ clientId, ...body })
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Client-Id': clientId || '',
+      'X-Admin-Token': adminToken || ''
+    },
+    body: JSON.stringify({ clientId, adminToken, ...body })
   });
+}
+
+async function restoreAdminSession() {
+  if (!SERVER_MODE || !clientId || !adminToken || isAdmin) return false;
+  try {
+    const r = await adminFetch('/api/admin/restore', {});
+    if (!r.ok) {
+      if (r.status === 403) setAdminToken(null);
+      return false;
+    }
+    isAdmin = true;
+    refreshAdminUI();
+    closeAdminModal();
+    return true;
+  } catch { return false; }
 }
 
 if (adminToggleBtn) {
@@ -1693,6 +1721,7 @@ if (adminReleaseBtn) {
   adminReleaseBtn.addEventListener('click', async () => {
     if (!SERVER_MODE || !clientId) return;
     try { await adminFetch('/api/admin/release', {}); } catch {}
+    setAdminToken(null);
     isAdmin = false;
     refreshAdminUI();
     toast('Saliste del modo admin', 'success');
@@ -1864,9 +1893,13 @@ function showAdminError(msg) {
 }
 if (adminCancelBtn) adminCancelBtn.addEventListener('click', closeAdminModal);
 
-// Si la URL es /admin (o termina con #admin), abre directo el modal de admin.
+// Si la URL es /admin (o termina con #admin), restaura sesión admin o abre el modal.
 if (/^\/admin\/?$/i.test(location.pathname) || location.hash === '#admin') {
-  setTimeout(openAdminModal, 100);
+  setTimeout(async () => {
+    if (!clientId) await waitForClientId(2000);
+    const restored = await restoreAdminSession();
+    if (!restored && !isAdmin) openAdminModal();
+  }, 100);
 }
 
 if (adminForm) {
@@ -1895,6 +1928,7 @@ if (adminForm) {
       const r = await adminFetch('/api/admin/claim', { pin });
       const out = await r.json().catch(() => ({}));
       if (!r.ok) { showAdminError(out.error || 'PIN incorrecto'); return; }
+      setAdminToken(out.adminToken || null);
       isAdmin = true;
       refreshAdminUI();
       closeAdminModal();
@@ -1939,6 +1973,7 @@ const _origApplyBoardActive = applyBoardActive;
 applyBoardActive = function (active) {
   _origApplyBoardActive(active);
   // Ocultamos toda la sección del tablero hasta que el admin active el paso 5.
+  document.body.classList.toggle('board-active', boardActive);
   if (boardSectionEl) boardSectionEl.hidden = !boardActive;
   if (boardGridEl)    boardGridEl.hidden    = !boardActive;
   if (boardActionsEl) boardActionsEl.hidden = !boardActive || !isAdmin;
@@ -1947,6 +1982,7 @@ applyBoardActive = function (active) {
 const _origRefreshAdminUI2 = refreshAdminUI;
 refreshAdminUI = function () {
   _origRefreshAdminUI2();
+  document.body.classList.toggle('board-active', boardActive);
   if (boardSectionEl) boardSectionEl.hidden = !boardActive;
   if (boardGridEl)    boardGridEl.hidden    = !boardActive;
   if (boardActionsEl) boardActionsEl.hidden = !boardActive || !isAdmin;

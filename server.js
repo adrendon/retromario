@@ -17,6 +17,7 @@ const PORT      = Number(process.env.PORT) || 3000;
 const HOST      = process.env.HOST || '0.0.0.0';
 const ROOT      = __dirname;
 const ADMIN_PIN = String(process.env.MARIO_ADMIN_PIN || 'sitioBanco');
+const ADMIN_SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12h: sobrevive recargas, no reinicios del server
 
 const CATEGORIES = [
   'banana-future','shortcut-future','power-future',
@@ -39,6 +40,9 @@ let data = emptyData();
 
 // Admin actual (clientId). Solo uno a la vez. Memoria.
 let adminClientId = null;
+// Sesiones admin por token para que recargar la página no obligue a poner el PIN otra vez.
+// Map<token, { clientId, createdAt }>
+const adminSessions = new Map();
 
 // Pilotos en vivo: solo memoria (se vacían al reiniciar y al desconectar)
 // Map<clientId, { name, character, joinedAt }>
@@ -134,18 +138,14 @@ function broadcastRace() { broadcast('race:update', racePublicState()); }
 function saveData() { /* no-op: estado solo en memoria */ }
 
 function getPilotsList() {
-  // Lista única por nombre (si un piloto abre 2 pestañas no aparece duplicado)
-  const seen = new Map();
-  for (const p of livePilots.values()) {
-    const k = p.name.toLowerCase();
-    if (!seen.has(k)) seen.set(k, { name: p.name, character: p.character });
-  }
-  return [...seen.values()];
+  // Participantes registrados durante esta sesión del server. No los quitamos al desconectar
+  // porque en Render/proxies una reconexión breve no debe hacer desaparecer usuarios ya creados.
+  return [...everPilots.values()];
 }
 
 function getAllPilotsList() {
-  // Todos los pilotos que se unieron en esta sesión del server (vivos + desconectados)
-  return [...everPilots.values()];
+  // Alias explícito para reportes/Excel: todos los pilotos registrados en la sesión.
+  return getPilotsList();
 }
 
 /* ---------- SSE ---------- */
@@ -223,11 +223,38 @@ function serveStatic(req, res, urlPath) {
 
 /* ---------- Handlers de API ---------- */
 function makeId() { return crypto.randomUUID(); }
+function makeAdminToken() { return crypto.randomBytes(32).toString('base64url'); }
 function sanitize(str, max) { return String(str == null ? '' : str).slice(0, max); }
 function normalizeClientId(value) {
   const id = sanitize(value, 80).trim();
   // Permitimos ids UUID/crypto del navegador y evitamos saltos de línea en SSE/logs.
   return /^[A-Za-z0-9_-]{8,80}$/.test(id) ? id : '';
+}
+
+
+function pruneAdminSessions(now = Date.now()) {
+  for (const [token, session] of adminSessions) {
+    if (!session || now - session.createdAt > ADMIN_SESSION_TTL_MS) adminSessions.delete(token);
+  }
+}
+
+function createAdminSession(clientId) {
+  pruneAdminSessions();
+  const token = makeAdminToken();
+  adminSessions.set(token, { clientId, createdAt: Date.now() });
+  return token;
+}
+
+function validateAdminSession(clientId, token) {
+  pruneAdminSessions();
+  const session = adminSessions.get(sanitize(token, 128));
+  return !!(session && session.clientId === clientId);
+}
+
+function revokeAdminSessions(clientId) {
+  for (const [token, session] of adminSessions) {
+    if (session && session.clientId === clientId) adminSessions.delete(token);
+  }
 }
 
 function publicActions() {
@@ -285,7 +312,14 @@ function broadcastAdmin()  { broadcast('admin:update',  { adminTaken: !!adminCli
 
 function requireAdmin(req, body) {
   const cid = normalizeClientId((body && body.clientId) || req.headers['x-client-id'] || '');
-  return cid && cid === adminClientId;
+  const token = sanitize((body && body.adminToken) || req.headers['x-admin-token'] || '', 128);
+  if (!cid) return false;
+  if (cid === adminClientId) return true;
+  if (validateAdminSession(cid, token) && (!adminClientId || adminClientId === cid)) {
+    adminClientId = cid;
+    return true;
+  }
+  return false;
 }
 
 async function handleApi(req, res, url) {
@@ -326,8 +360,14 @@ async function handleApi(req, res, url) {
       livePilots.delete(clientId);
       if (moods.delete(clientId)) broadcast('moods:update', moodsList());
       if (adminClientId === clientId) {
-        adminClientId = null;
-        broadcastAdmin();
+        // En una recarga normal el EventSource viejo cierra antes de abrir el nuevo.
+        // Damos una ventana corta para no expulsar al admin ni pedir PIN de nuevo.
+        setTimeout(() => {
+          if (adminClientId === clientId && !clients.has(clientId)) {
+            adminClientId = null;
+            broadcastAdmin();
+          }
+        }, 10000);
       }
       if (removed) {
         const stillThere = [...livePilots.values()]
@@ -335,7 +375,7 @@ async function handleApi(req, res, url) {
         if (!stillThere) {
           broadcast('pilots:update', { pilots: getPilotsList(), allPilots: getAllPilotsList() });
           broadcastRace();
-          console.log(`👋 ${removed.character} ${removed.name} salió de la pista`);
+          console.log(`👋 ${removed.character} ${removed.name} se desconectó (sigue en participantes)`);
         }
       }
     };
@@ -531,6 +571,22 @@ async function handleApi(req, res, url) {
       return send(res, 409, { error: 'Ya hay un admin activo' });
     }
     adminClientId = clientId;
+    const adminToken = createAdminSession(clientId);
+    broadcastAdmin();
+    return send(res, 200, { ok: true, isAdmin: true, adminToken });
+  }
+
+  // POST /api/admin/restore   body: { clientId, adminToken }
+  if (req.method === 'POST' && parts.length === 3 && parts[1] === 'admin' && parts[2] === 'restore') {
+    const body = await readBody(req);
+    const clientId = normalizeClientId(body.clientId);
+    const token = sanitize(body.adminToken, 128);
+    if (!clientId) return send(res, 400, { error: 'clientId requerido' });
+    if (!validateAdminSession(clientId, token)) return send(res, 403, { error: 'Sesión admin expirada' });
+    if (adminClientId && adminClientId !== clientId) {
+      return send(res, 409, { error: 'Ya hay un admin activo' });
+    }
+    adminClientId = clientId;
     broadcastAdmin();
     return send(res, 200, { ok: true, isAdmin: true });
   }
@@ -541,6 +597,7 @@ async function handleApi(req, res, url) {
     const clientId = normalizeClientId(body.clientId);
     if (adminClientId && adminClientId === clientId) {
       adminClientId = null;
+      revokeAdminSessions(clientId);
       broadcastAdmin();
     }
     return send(res, 200, { ok: true });
