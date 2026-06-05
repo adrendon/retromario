@@ -1437,12 +1437,13 @@ if (!SERVER_MODE) {
 
 /* ---------- MÚSICA (Web Audio, sin archivos) ---------- */
 const MUSIC_KEY = 'mario-kart-retro-music-on-v1';
+const MUSIC_TRACK_KEY = 'mario-kart-retro-music-track-v1';
 const musicBtn = document.getElementById('music-toggle-btn');
 let audioCtx = null;
 let musicGain = null;
 let musicTimer = null;
 let musicOn = false;
-let currentTrack = 'main';  // 'main' | 'timer'
+let currentTrack = readJSON(MUSIC_TRACK_KEY, 'main');  // id en TRACKS
 
 // Pista principal — Retro Kart Theme (8-bit)
 const MELODY = [
@@ -1481,9 +1482,130 @@ const TIMER_BASS = [
 
 const BPM_MAIN  = 200;
 const BPM_TIMER = 260;
-function trackData(track) {
-  if (track === 'timer') return { melody: TIMER_MELODY, bass: TIMER_BASS, bpm: BPM_TIMER };
-  return { melody: MELODY, bass: BASS, bpm: BPM_MAIN };
+
+// Catálogo de 5 pistas 8-bit. Cada una con melodía + bajo + bpm + icono.
+const TRACKS = [
+  {
+    id: 'main',
+    name: 'Retro Kart Theme',
+    icon: '🏁',
+    bpm: BPM_MAIN,
+    melody: MELODY,
+    bass: BASS,
+  },
+  {
+    id: 'timer',
+    name: 'Race Countdown',
+    icon: '⏱️',
+    bpm: BPM_TIMER,
+    melody: TIMER_MELODY,
+    bass: TIMER_BASS,
+  },
+  {
+    id: 'rainbow',
+    name: 'Rainbow Road',
+    icon: '🌈',
+    bpm: 180,
+    melody: [
+      [72,1],[74,1],[76,1],[79,1],[81,1],[79,1],[76,1],[74,1],
+      [72,1],[76,1],[79,1],[84,1],[83,1],[79,1],[76,1],[null,1],
+      [74,1],[77,1],[81,1],[84,1],[86,1],[84,1],[81,1],[77,1],
+      [74,1],[77,1],[81,1],[86,1],[84,1],[81,1],[77,1],[null,1],
+      [72,2],[76,2],[79,2],[84,2],
+      [83,1],[81,1],[79,1],[77,1],[76,1],[74,1],[72,4]
+    ],
+    bass: [
+      [48,2],[55,2],[48,2],[55,2],
+      [50,2],[57,2],[50,2],[57,2],
+      [45,2],[52,2],[45,2],[52,2],
+      [43,2],[50,2],[43,4]
+    ],
+  },
+  {
+    id: 'bowser',
+    name: "Bowser's Castle",
+    icon: '🐢',
+    bpm: 150,
+    melody: [
+      [55,2],[58,2],[60,2],[63,2],
+      [62,1],[60,1],[58,2],[55,4],
+      [55,2],[58,2],[60,2],[65,2],
+      [63,1],[62,1],[60,2],[58,4],
+      [48,1],[50,1],[51,1],[53,1],[55,2],[null,2],
+      [55,1],[58,1],[60,1],[63,1],[62,2],[60,2]
+    ],
+    bass: [
+      [31,2],[31,2],[34,2],[34,2],
+      [36,2],[36,2],[31,2],[31,2],
+      [29,2],[29,2],[34,2],[34,2],
+      [31,4],[31,4]
+    ],
+  },
+  {
+    id: 'star',
+    name: 'Star Power',
+    icon: '⭐',
+    bpm: 240,
+    melody: [
+      [76,1],[79,1],[84,1],[88,1],[91,1],[88,1],[84,1],[79,1],
+      [76,1],[79,1],[83,1],[88,1],[91,1],[88,1],[83,1],[79,1],
+      [77,1],[81,1],[84,1],[89,1],[93,1],[89,1],[84,1],[81,1],
+      [76,1],[79,1],[84,1],[88,1],[91,2],[88,2],
+      [84,1],[88,1],[91,1],[93,1],[96,1],[93,1],[91,1],[88,1],
+      [84,2],[88,2],[91,4]
+    ],
+    bass: [
+      [40,1],[47,1],[40,1],[47,1],[40,1],[47,1],[40,1],[47,1],
+      [38,1],[45,1],[38,1],[45,1],[38,1],[45,1],[38,1],[45,1],
+      [41,1],[48,1],[41,1],[48,1],[41,1],[48,1],[41,1],[48,1],
+      [40,1],[47,1],[40,1],[47,1],[40,2],[47,2]
+    ],
+  },
+];
+function trackById(id) { return TRACKS.find(t => t.id === id) || TRACKS[0]; }
+function trackData(id) {
+  const t = trackById(id);
+  return { melody: t.melody, bass: t.bass, bpm: t.bpm };
+}
+function getCurrentTrackName() {
+  const t = trackById(currentTrack);
+  return `${t.icon} ${t.name} · 8-bit`;
+}
+function setTrackByIndex(idx) {
+  const n = TRACKS.length;
+  const i = ((idx % n) + n) % n;
+  setTrack(TRACKS[i].id);
+  writeJSON(MUSIC_TRACK_KEY, TRACKS[i].id);
+  renderTrackList();
+  if (window.__syncMusicBar) window.__syncMusicBar();
+  // si no está sonando, arranca para feedback inmediato al usuario.
+  if (!musicOn) startMusic();
+}
+function currentTrackIndex() {
+  const i = TRACKS.findIndex(t => t.id === currentTrack);
+  return i < 0 ? 0 : i;
+}
+function prevTrack() { setTrackByIndex(currentTrackIndex() - 1); }
+function nextTrack() { setTrackByIndex(currentTrackIndex() + 1); }
+
+function renderTrackList() {
+  const root = document.getElementById('music-track-list');
+  if (!root) return;
+  root.innerHTML = '';
+  TRACKS.forEach((t, i) => {
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'music-track-item' + (t.id === currentTrack ? ' is-current' : '');
+    item.dataset.trackId = t.id;
+    item.innerHTML = `
+      <span class="mt-num">${String(i + 1).padStart(2, '0')}</span>
+      <span class="mt-icon" aria-hidden="true">${t.icon}</span>
+      <span class="mt-name">${t.name}</span>
+      <span class="mt-bpm">${t.bpm} BPM</span>
+    `;
+    item.addEventListener('click', () => setTrackByIndex(i));
+    root.appendChild(item);
+  });
 }
 
 function midiToFreq(m) { return 440 * Math.pow(2, (m - 69) / 12); }
@@ -1603,6 +1725,7 @@ function setTrack(track) {
     stopActiveNotes(); // corta las notas de la pista anterior antes de empezar la nueva
     scheduleLoop();
   }
+  if (window.__syncMusicBar) window.__syncMusicBar();
 }
 
 /* ---------- MODAL de música (Paso 1) ---------- */
@@ -1614,6 +1737,7 @@ const musicVolume      = document.getElementById('music-volume');
 function openMusicModal() {
   if (!musicModal) return;
   syncMusicModal();
+  renderTrackList();
   musicModal.hidden = false;
 }
 function syncMusicModal() {

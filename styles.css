@@ -300,6 +300,7 @@ body:not(.is-admin) .step.is-admin-only::after { display:none !important; }
 .music-track-item .mt-num { font-weight:700; opacity:.7; min-width:18px; }
 .music-track-item .mt-name { flex:1; }
 .music-track-item .mt-icon { font-size:1rem; }
+.music-track-item .mt-bpm { font-family:'JetBrains Mono',monospace; font-size:.65rem; opacity:.6; }
 
 /* Objetivo y acciones */
 .objective-editor textarea {
