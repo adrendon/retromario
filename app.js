@@ -169,36 +169,78 @@ function formatWhen(ts) {
 }
 
 /* ---------- Render: pilotos ---------- */
-function renderPilots() {
-  const list = document.getElementById('pilot-list');
-  const current = document.getElementById('current-pilot');
-  if (!list || !current) return;
-
+const PILOT_COLORS = ['mario-red','luigi-green','toad-blue','star-gold','peach-pink','slate-gray'];
+function initialsOf(name) {
+  const parts = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+function pilotColorBg(idx) {
+  const map = {
+    'mario-red':   '#E62424',
+    'luigi-green': '#24A148',
+    'toad-blue':   '#0072CE',
+    'star-gold':   '#FFD700',
+    'peach-pink':  '#F3648C',
+    'slate-gray':  '#555E6B',
+  };
+  return map[PILOT_COLORS[idx % PILOT_COLORS.length]];
+}
+function pilotColorInk(idx) {
+  // star-gold = índice 3 → texto oscuro; el resto blanco
+  return (idx % PILOT_COLORS.length === 3) ? '#333333' : '#ffffff';
+}
+function makePilotAvatar(p, idx, opts) {
+  const a = document.createElement('span');
+  a.className = 'pilot-chip-avatar';
+  if (currentPilot && p.name.toLowerCase() === currentPilot.name.toLowerCase()) {
+    a.classList.add('is-current');
+  }
+  a.style.background = pilotColorBg(idx);
+  a.style.color = pilotColorInk(idx);
+  a.title = `${p.character} ${p.name}`;
+  // mostramos el emoji + iniciales pequeñas
+  a.innerHTML = `<span aria-hidden="true" style="font-size:.95rem;line-height:1;">${p.character || ''}</span>`;
+  if (opts && opts.compact) return a;
+  return a;
+}
+function renderPilotList(targetId, countId, maxVisible) {
+  const list = document.getElementById(targetId);
+  const count = document.getElementById(countId);
+  if (!list) return;
   list.innerHTML = '';
-  if (pilots.length === 0) {
+  if (count) count.textContent = String(pilots.length);
+
+  if (!pilots.length) {
     const empty = document.createElement('span');
     empty.className = 'pilot-empty';
-    empty.textContent = 'Aún no hay pilotos registrados…';
+    empty.textContent = 'Aún no hay pilotos…';
     list.appendChild(empty);
-  } else {
-    pilots.forEach(p => {
-      const chip = document.createElement('span');
-      chip.className = 'pilot-chip';
-      if (currentPilot && p.name.toLowerCase() === currentPilot.name.toLowerCase()) {
-        chip.classList.add('is-current');
-      }
-      const c = document.createElement('span'); c.className = 'char'; c.textContent = p.character;
-      const n = document.createElement('span'); n.textContent = p.name;
-      chip.appendChild(c); chip.appendChild(n);
-      list.appendChild(chip);
-    });
+    return;
   }
+  const limit = maxVisible || 4;
+  pilots.slice(0, limit).forEach((p, idx) => list.appendChild(makePilotAvatar(p, idx)));
+  if (pilots.length > limit) {
+    const extra = document.createElement('span');
+    extra.className = 'pilot-chip-avatar pilot-chip-extra';
+    extra.textContent = '+' + (pilots.length - limit);
+    extra.title = pilots.slice(limit).map(p => `${p.character} ${p.name}`).join('\n');
+    list.appendChild(extra);
+  }
+}
+function renderPilots() {
+  renderPilotList('pilot-list', 'pilot-count', 4);
+  renderPilotList('pilot-list-mobile', 'pilot-count-mobile', 4);
 
-  if (currentPilot) {
-    current.hidden = false;
-    current.textContent = `Tú: ${currentPilot.character} ${currentPilot.name}`;
-  } else {
-    current.hidden = true;
+  const current = document.getElementById('current-pilot');
+  if (current) {
+    if (currentPilot) {
+      current.hidden = false;
+      current.textContent = `Tú: ${currentPilot.character} ${currentPilot.name}`;
+    } else {
+      current.hidden = true;
+    }
   }
   updateFormsEnabled();
   if (typeof renderLanes === 'function') renderLanes();
@@ -209,9 +251,9 @@ function updateFormsEnabled() {
   document.querySelectorAll('.add-form').forEach(f => {
     const input = f.querySelector('input');
     const btn   = f.querySelector('button');
-    input.disabled = !has;
-    btn.disabled   = !has;
-    input.placeholder = has
+    if (input) input.disabled = !has;
+    if (btn)   btn.disabled   = !has;
+    if (input) input.placeholder = has
       ? (input.dataset.basePlaceholder || input.placeholder)
       : '🔒 Únete primero para escribir…';
   });
@@ -876,10 +918,22 @@ function openObjectiveModal() {
 }
 
 function renderObjective() {
-  if (!objectiveText) return;
-  // No piso lo que está escribiendo el usuario sin guardar
-  if (!objectiveDirty && document.activeElement !== objectiveText) {
-    objectiveText.value = objective || '';
+  if (objectiveText) {
+    // No piso lo que está escribiendo el usuario sin guardar
+    if (!objectiveDirty && document.activeElement !== objectiveText) {
+      objectiveText.value = objective || '';
+    }
+  }
+  const display = document.getElementById('objective-display');
+  if (display) {
+    const txt = (objective || '').trim();
+    if (txt) {
+      display.textContent = txt;
+      display.style.fontStyle = 'normal';
+    } else {
+      display.textContent = 'Aún no se ha definido un objetivo. Pulsa ✏️ para escribirlo.';
+      display.style.fontStyle = 'italic';
+    }
   }
 }
 function flashObjective(msg) {
@@ -1515,6 +1569,7 @@ function startMusic() {
   musicBtn.setAttribute('aria-pressed', 'true');
   musicBtn.classList.add('is-on');
   syncMusicModal();
+  if (window.__syncMusicBar) window.__syncMusicBar();
   scheduleLoop();
 }
 
@@ -1536,6 +1591,7 @@ function stopMusic() {
   musicBtn.setAttribute('aria-pressed', 'false');
   musicBtn.classList.remove('is-on');
   syncMusicModal();
+  if (window.__syncMusicBar) window.__syncMusicBar();
 }
 
 /* Cambiar de pista en caliente (sin interrumpir el botón de play) */
@@ -1700,8 +1756,8 @@ function refreshAdminUI() {
   document.body.classList.toggle('is-admin', !!isAdmin);
   if (typeof renderActions === 'function') renderActions();
   if (adminToggleBtn) {
-    // El botón "Modo admin" se oculta siempre: el admin entra por la ruta /admin.
-    adminToggleBtn.hidden = true;
+    // Visible cuando no eres admin (para pedir PIN). Oculto cuando ya entraste.
+    adminToggleBtn.hidden = !!isAdmin;
   }
   if (adminPanelEl) adminPanelEl.hidden = !isAdmin;
   if (adminTagEl)   adminTagEl.hidden   = !isAdmin;
@@ -2027,3 +2083,153 @@ refreshAdminUI = function () {
   refreshStepsAdminLock();
   syncBoardVisibility();
 };
+
+
+/* ====================================================================
+   C1: Año dinámico, music bar, carruseles, botón "Empezar carrera"
+   ==================================================================== */
+
+(function applyDynamicYear() {
+  const y = new Date().getFullYear();
+  ['year-header', 'year-footer'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = String(y);
+  });
+})();
+
+/* ---------- Music bar (mirror del modal de música) ---------- */
+(function wireMusicBar() {
+  const btn = document.getElementById('music-toggle-btn');
+  const trackEl = document.getElementById('music-track-bar-name');
+  const statusEl = document.getElementById('music-status-bar');
+  const volBar = document.getElementById('music-volume-bar');
+  const volModal = document.getElementById('music-volume');
+  const prev = document.getElementById('music-prev-btn');
+  const next = document.getElementById('music-next-btn');
+
+  // El icono del botón de la barra se mantiene como ▶️/⏸️ (no como label largo).
+  function syncBar() {
+    if (btn) {
+      btn.textContent = musicOn ? '⏸️' : '▶️';
+      btn.setAttribute('aria-pressed', musicOn ? 'true' : 'false');
+    }
+    if (statusEl) statusEl.textContent = musicOn ? 'Sonando 🎶' : 'En pausa';
+    if (trackEl && typeof getCurrentTrackName === 'function') {
+      trackEl.textContent = getCurrentTrackName();
+    }
+  }
+  window.__syncMusicBar = syncBar;
+
+  // Sustituye el texto largo que el código viejo escribía en musicBtn.
+  const _origSync = typeof syncMusicModal === 'function' ? syncMusicModal : null;
+  if (_origSync) {
+    window.syncMusicModal = function () {
+      _origSync();
+      syncBar();
+      // El botón compacto NO debe llevar el texto del modal.
+      if (btn) btn.textContent = musicOn ? '⏸️' : '▶️';
+    };
+  }
+
+  // Volumen sincronizado entre barra y modal.
+  if (volBar) {
+    volBar.addEventListener('input', () => {
+      if (volModal) { volModal.value = volBar.value; volModal.dispatchEvent(new Event('input')); }
+    });
+  }
+  if (prev) prev.addEventListener('click', () => { if (typeof prevTrack === 'function') prevTrack(); });
+  if (next) next.addEventListener('click', () => { if (typeof nextTrack === 'function') nextTrack(); });
+
+  syncBar();
+})();
+
+/* ---------- Carruseles (steps + board) ---------- */
+(function wireCarousels() {
+  const carousels = {
+    steps: {
+      el: document.getElementById('steps-carousel'),
+      pos: document.getElementById('steps-carousel-pos'),
+      itemSelector: ':scope > li',
+    },
+    board: {
+      el: document.getElementById('board'),
+      pos: document.getElementById('board-carousel-pos'),
+      itemSelector: ':scope > article',
+    },
+  };
+
+  function step(name, dir) {
+    const c = carousels[name];
+    if (!c || !c.el) return;
+    const items = c.el.querySelectorAll(c.itemSelector);
+    if (!items.length) return;
+    const w = items[0].getBoundingClientRect().width + 16; // approx gap
+    c.el.scrollBy({ left: dir * w, behavior: 'smooth' });
+  }
+
+  function updatePos(name) {
+    const c = carousels[name];
+    if (!c || !c.el || !c.pos) return;
+    const items = c.el.querySelectorAll(c.itemSelector);
+    if (!items.length) { c.pos.textContent = '0 / 0'; return; }
+    const w = items[0].getBoundingClientRect().width + 16;
+    const idx = Math.round(c.el.scrollLeft / w);
+    c.pos.textContent = `${Math.min(items.length, idx + 1)} / ${items.length}`;
+  }
+
+  document.querySelectorAll('[data-carousel-prev]').forEach(btn => {
+    btn.addEventListener('click', () => step(btn.dataset.carouselPrev, -1));
+  });
+  document.querySelectorAll('[data-carousel-next]').forEach(btn => {
+    btn.addEventListener('click', () => step(btn.dataset.carouselNext, +1));
+  });
+  Object.keys(carousels).forEach(name => {
+    const c = carousels[name];
+    if (c.el) c.el.addEventListener('scroll', () => updatePos(name), { passive: true });
+    updatePos(name);
+  });
+  // Reposicionar al cambiar tamaño / al activarse el tablero.
+  window.addEventListener('resize', () => {
+    Object.keys(carousels).forEach(updatePos);
+  });
+})();
+
+/* ---------- Botón "Empezar carrera" del header (admin) ---------- */
+(function wireCreateRace() {
+  const btn = document.getElementById('create-race-btn');
+  if (!btn) return;
+  btn.addEventListener('click', async () => {
+    if (!SERVER_MODE) { toast('Modo local: no hay servidor', 'warn'); return; }
+    if (!isAdmin) {
+      toast('Solo el admin puede empezar la carrera', 'warn');
+      if (typeof openAdminModal === 'function') openAdminModal();
+      return;
+    }
+    try {
+      await adminFetch('/api/board', { active: true });
+      const dur = Number(adminTimerSelect && adminTimerSelect.value) || 300;
+      await adminFetch('/api/timer', { action: 'start', durationSec: dur });
+      toast('🏁 ¡Carrera empezada! Tablero abierto.', 'success');
+      const target = document.getElementById('retro');
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch {
+      toast('No se pudo iniciar la carrera', 'danger');
+    }
+  });
+})();
+
+/* ---------- Re-aplicar posición de carrusel del tablero cuando aparece ---------- */
+(function watchBoardReveal() {
+  const board = document.getElementById('board');
+  const sec = document.getElementById('retro');
+  if (!board || !sec) return;
+  const obs = new MutationObserver(() => {
+    if (!sec.hidden && !board.hidden) {
+      const pos = document.getElementById('board-carousel-pos');
+      const items = board.querySelectorAll(':scope > article');
+      if (pos) pos.textContent = `1 / ${items.length}`;
+    }
+  });
+  obs.observe(sec, { attributes: true, attributeFilter: ['hidden'] });
+  obs.observe(board, { attributes: true, attributeFilter: ['hidden'] });
+})();

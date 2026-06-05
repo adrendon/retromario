@@ -3,568 +3,639 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>🏁 Retrospectiva Mario Kart 🚗</title>
+<title>🏁 Retro Mario Kart · Sprint #245</title>
+
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600&amp;family=JetBrains+Mono:wght@700&amp;family=Rubik:wght@600;700;800&amp;display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          surface: "#f6fafe",
+          "surface-low": "#f0f4f8",
+          "surface-container": "#eaeef2",
+          "surface-high": "#e4e9ed",
+          "mario-red": "#E62424",
+          "luigi-green": "#24A148",
+          "toad-blue": "#0072CE",
+          "star-gold": "#FFD700",
+          "peach-pink": "#F3648C",
+          "slate-gray": "#555E6B",
+          "ink-black": "#333333",
+          ink: "#1d2939",
+        },
+        fontFamily: {
+          body: ["Hanken Grotesk", "system-ui", "sans-serif"],
+          mono: ["JetBrains Mono", "monospace"],
+          display: ["Rubik", "system-ui", "sans-serif"],
+        },
+        boxShadow: {
+          retro: "4px 4px 0px 0px #555E6B",
+          "retro-sm": "2px 2px 0px 0px #555E6B",
+        },
+      },
+    },
+  };
+</script>
 <link rel="stylesheet" href="styles.css" />
 </head>
-<body>
+<body class="bg-surface font-body text-ink selection:bg-mario-red selection:text-white">
 
-  <!-- MODAL: Login del admin (PIN + piloto) -->
-  <div class="modal-backdrop" id="admin-modal" role="dialog" aria-modal="true" aria-labelledby="admin-title" hidden>
-    <div class="modal">
-      <span class="modal-confetti" aria-hidden="true">👑</span>
-      <h2 id="admin-title">🔑 Modo admin</h2>
-      <p class="modal-lead">
-        Ingresa el PIN para tomar el control de la retro. También puedes
-        elegir tu personaje y nombre si todavía no te has unido a la pista.
-      </p>
+<!-- MODAL: admin -->
+<div class="modal-backdrop" id="admin-modal" role="dialog" aria-modal="true" aria-labelledby="admin-title" hidden>
+  <div class="modal">
+    <span class="modal-confetti" aria-hidden="true">👑</span>
+    <h2 id="admin-title">🔑 Modo admin</h2>
+    <p class="modal-lead">Ingresa el PIN para tomar el control de la retro.</p>
+    <form id="admin-form" class="join-form" autocomplete="off">
+      <label class="field"><span>PIN del admin</span><input type="password" id="admin-pin" maxlength="32" placeholder="password" required /></label>
+      <label class="field"><span>Tu nombre</span><input type="text" id="admin-name" maxlength="24" placeholder="Ej. Ana, Carlos…" /></label>
+      <fieldset class="character-picker"><legend>Elige tu personaje</legend><div class="character-grid" id="admin-character-grid"></div></fieldset>
+      <div id="admin-modal-error" class="admin-modal-error" hidden></div>
+      <div class="modal-actions" style="gap:8px; flex-wrap:wrap;">
+        <button type="button" class="btn-mini" id="admin-cancel">Cancelar</button>
+        <button type="submit" class="btn btn-primary">👑 Entrar como admin</button>
+      </div>
+    </form>
+  </div>
+</div>
 
-      <form id="admin-form" class="join-form" autocomplete="off">
-        <label class="field">
-          <span>PIN del admin</span>
-          <input type="password" id="admin-pin" maxlength="32" placeholder="password" required />
-        </label>
+<!-- MODAL: join -->
+<div class="modal-backdrop" id="join-modal" role="dialog" aria-modal="true" aria-labelledby="join-title" hidden>
+  <div class="modal">
+    <span class="modal-confetti" aria-hidden="true">🎉</span>
+    <h2 id="join-title">🏁 ¡Únete a la carrera!</h2>
+    <p class="modal-lead">Elige tu personaje y escribe tu nombre para subirte al kart.</p>
+    <form id="join-form" class="join-form" autocomplete="off">
+      <label class="field"><span>Tu nombre</span><input type="text" id="pilot-name" maxlength="24" placeholder="Ej. Ana, Carlos…" required /></label>
+      <fieldset class="character-picker"><legend>Elige tu personaje</legend><div class="character-grid" id="character-grid"></div></fieldset>
+      <div class="modal-actions"><button type="submit" class="btn btn-primary">🚦 ¡A correr!</button></div>
+    </form>
+  </div>
+</div>
 
-        <label class="field">
-          <span>Tu nombre</span>
-          <input type="text" id="admin-name" maxlength="24" placeholder="Ej. Ana, Carlos…" />
-        </label>
+<!-- MODAL: mood -->
+<div class="modal-backdrop" id="mood-modal" role="dialog" aria-modal="true" aria-labelledby="mood-title" hidden>
+  <div class="modal">
+    <span class="modal-confetti" aria-hidden="true">🧊</span>
+    <h2 id="mood-title">🎮 ¿Cómo te sientes hoy?</h2>
+    <p class="modal-lead">Elige el emoji que mejor represente tu ánimo.</p>
+    <form id="mood-form" autocomplete="off">
+      <div class="mood-grid" id="mood-grid"></div>
+      <div class="modal-actions" style="gap:8px; flex-wrap:wrap;">
+        <button type="button" class="btn btn-secondary" id="mood-clear-btn">🧹 Quitar mi ánimo</button>
+        <button type="button" class="btn-mini" id="mood-cancel-btn">Cancelar</button>
+        <button type="submit" class="btn btn-primary">✅ Compartir</button>
+      </div>
+    </form>
+    <div class="moods-wall" id="moods-wall" aria-live="polite" style="margin-top:18px"></div>
+  </div>
+</div>
 
-        <fieldset class="character-picker">
-          <legend>Elige tu personaje</legend>
-          <div class="character-grid" id="admin-character-grid"></div>
-        </fieldset>
+<!-- MODAL: música -->
+<div class="modal-backdrop" id="music-modal" role="dialog" aria-modal="true" aria-labelledby="music-title" hidden>
+  <div class="modal" style="max-width:460px">
+    <span class="modal-confetti" aria-hidden="true">🎵</span>
+    <h2 id="music-title">🎶 Reproductor de carrera</h2>
+    <p class="modal-lead">Música chiptune 8-bit generada en vivo. Cambia entre las pistas.</p>
+    <div class="music-player">
+      <button type="button" id="music-modal-toggle" class="btn btn-primary btn-music-big">▶️ Reproducir</button>
+      <div class="music-meta">
+        <span id="music-track-name">Retro Kart Theme · 8-bit</span>
+        <span id="music-status">En pausa</span>
+      </div>
+      <div id="music-track-list" class="music-track-list"></div>
+      <label class="music-volume">Volumen <input type="range" id="music-volume" min="0" max="100" value="40" /></label>
+    </div>
+    <div class="modal-actions"><button type="button" class="btn-mini" data-closes="music-modal">Cerrar</button></div>
+  </div>
+</div>
 
-        <div id="admin-modal-error" class="admin-modal-error" hidden></div>
+<!-- MODAL: objetivo -->
+<div class="modal-backdrop" id="objective-modal" role="dialog" aria-modal="true" aria-labelledby="objective-title" hidden>
+  <div class="modal">
+    <span class="modal-confetti" aria-hidden="true">🎯</span>
+    <h2 id="objective-title">🎯 Objetivo de la retro</h2>
+    <p class="modal-lead">Escribe el objetivo del sprint para que todo el equipo lo tenga visible.</p>
+    <div class="objective-editor">
+      <textarea id="objective-text" rows="4" maxlength="800" placeholder="Ej: Mejorar nuestra velocidad de entrega y anticipar los obstáculos del próximo sprint."></textarea>
+      <div class="objective-actions">
+        <button type="button" class="btn btn-primary" id="objective-save">💾 Guardar</button>
+        <button type="button" class="btn-mini" id="objective-copy">📋 Copiar</button>
+        <span class="objective-status" id="objective-status"></span>
+      </div>
+    </div>
+    <div class="modal-actions"><button type="button" class="btn-mini" data-closes="objective-modal">Cerrar</button></div>
+  </div>
+</div>
 
-        <div class="modal-actions" style="gap:8px; flex-wrap:wrap;">
-          <button type="button" class="btn-mini" id="admin-cancel">Cancelar</button>
-          <button type="submit" class="btn btn-primary">👑 Entrar como admin</button>
-        </div>
+<!-- MODAL: acciones -->
+<div class="modal-backdrop" id="actions-modal" role="dialog" aria-modal="true" aria-labelledby="actions-title" hidden>
+  <div class="modal" style="max-width:560px">
+    <span class="modal-confetti" aria-hidden="true">🏆</span>
+    <h2 id="actions-title">🏆 Acciones del próximo sprint</h2>
+    <p class="modal-lead">Propongan hasta <strong>5 acciones</strong>. Todos los pilotos pueden votar.</p>
+    <div class="actions-panel" id="actions-panel">
+      <form class="actions-form" id="actions-form" autocomplete="off">
+        <input id="action-input" type="text" maxlength="240" placeholder="Escribe una acción para el próximo sprint…" />
+        <button type="submit" class="btn btn-primary">➕ Añadir</button>
       </form>
+      <p class="actions-meta"><span id="actions-count">0</span> / 5 acciones · <button type="button" class="btn-mini" id="actions-clear">🗑️ Borrar todas</button></p>
+      <ul class="actions-list" id="actions-list" aria-live="polite"></ul>
+    </div>
+    <div class="modal-actions"><button type="button" class="btn-mini" data-closes="actions-modal">Cerrar</button></div>
+  </div>
+</div>
+
+<!-- HEADER -->
+<header class="sticky top-0 z-40 bg-white border-b-2 border-slate-gray shadow-sm">
+  <div class="max-w-[1280px] mx-auto px-4 md:px-12 h-16 md:h-20 flex items-center justify-between gap-4 md:gap-8">
+    <div class="flex items-center gap-3 md:gap-6 min-w-0">
+      <span class="font-display font-extrabold text-mario-red italic uppercase tracking-tighter shrink-0 text-lg md:text-2xl">Mario Retro</span>
+      <div class="hidden lg:flex items-center gap-6 border-l-2 border-slate-gray/10 pl-6 h-10">
+        <div class="flex flex-col">
+          <span class="text-[10px] font-mono text-slate-gray uppercase leading-none">Sprint</span>
+          <span class="font-bold text-sm">Sprint #<span id="sprint-number" data-default="245">245</span> · <span id="year-header">2026</span></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pilotos en pista (chip) -->
+    <div id="pilots-bar" class="flex-1 max-w-xl hidden md:flex items-center justify-center gap-3 bg-surface-low px-3 py-2 rounded-xl border border-slate-gray/10 min-w-0">
+      <div class="flex items-center gap-2 shrink-0">
+        <span class="material-symbols-outlined text-mario-red text-xl">sports_motorsports</span>
+        <span class="font-mono text-[10px] text-slate-gray uppercase whitespace-nowrap">Pilotos en pista:</span>
+        <span id="pilot-count" class="font-display font-bold text-mario-red text-xl leading-none">0</span>
+      </div>
+      <div class="h-6 w-px bg-slate-gray/20"></div>
+      <div id="pilot-list" class="flex -space-x-2 items-center min-w-0"></div>
+    </div>
+
+    <div class="flex items-center gap-2 md:gap-3 shrink-0">
+      <span class="conn-pill" id="conn-pill" data-state="connecting" title="Estado de conexión">
+        <span class="conn-dot" aria-hidden="true"></span>
+        <span class="conn-text">Conectando…</span>
+      </span>
+      <button id="create-race-btn" class="hidden sm:flex items-center bg-mario-red text-white font-mono text-xs px-4 py-2 rounded-full border-2 border-slate-gray shadow-retro-sm active:translate-y-0.5 active:shadow-none transition-all">🏁 Empezar carrera</button>
+      <button id="admin-toggle-btn" type="button" class="w-10 h-10 rounded-full border-2 border-slate-gray bg-white flex items-center justify-center text-lg hover:bg-surface-low" title="Modo admin">🔑</button>
+      <span id="admin-tag" hidden class="font-mono text-[10px] bg-star-gold text-ink-black px-2 py-1 rounded-full border-2 border-slate-gray">👑 Admin</span>
     </div>
   </div>
 
-  <!-- MODAL: Únete a la carrera -->
-  <div class="modal-backdrop" id="join-modal" role="dialog" aria-modal="true" aria-labelledby="join-title" hidden>
-    <div class="modal">
-      <span class="modal-confetti" aria-hidden="true">🎉</span>
-      <h2 id="join-title">🏁 ¡Únete a la carrera!</h2>
-      <p class="modal-lead">
-        Elige tu personaje y escribe tu nombre para subirte al kart.
-        Así tus compañeros sabrán quién escribió cada tarjeta.
-      </p>
+  <!-- Pilotos en mobile -->
+  <div class="md:hidden px-4 pb-3 pt-1 flex items-center gap-3 bg-surface-low border-t border-slate-gray/10">
+    <span class="material-symbols-outlined text-mario-red text-lg">sports_motorsports</span>
+    <span class="font-mono text-[10px] text-slate-gray uppercase whitespace-nowrap">En pista:</span>
+    <span id="pilot-count-mobile" class="font-display font-bold text-mario-red text-base leading-none">0</span>
+    <div id="pilot-list-mobile" class="flex -space-x-2 items-center min-w-0 overflow-hidden"></div>
+  </div>
+</header>
 
-      <form id="join-form" class="join-form" autocomplete="off">
-        <label class="field">
-          <span>Tu nombre</span>
-          <input type="text" id="pilot-name" maxlength="24" placeholder="Ej. Ana, Carlos…" required />
-        </label>
-
-        <fieldset class="character-picker">
-          <legend>Elige tu personaje</legend>
-          <div class="character-grid" id="character-grid"><!-- JS rellena --></div>
-        </fieldset>
-
-        <div class="modal-actions">
-          <button type="submit" class="btn btn-primary">🚦 ¡A correr!</button>
-        </div>
-      </form>
+<!-- MUSIC BAR -->
+<div class="bg-toad-blue text-white py-2 md:py-3 shadow-md border-b-2 border-slate-gray/20">
+  <div class="max-w-[1280px] mx-auto px-4 md:px-12 flex items-center justify-between gap-4 md:gap-8">
+    <div class="flex items-center gap-3 md:gap-4 min-w-0">
+      <button id="music-toggle-btn" type="button" aria-pressed="false" class="w-10 h-10 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-full transition-colors text-base">▶️</button>
+      <div class="min-w-0">
+        <p id="music-track-bar-name" class="text-xs font-bold truncate leading-none mb-1 uppercase tracking-wider">Retro Kart Theme · 8-bit</p>
+        <p id="music-status-bar" class="text-[10px] opacity-70 uppercase font-mono leading-none">En pausa</p>
+      </div>
+    </div>
+    <div class="flex-1 max-w-md hidden sm:flex items-center gap-3">
+      <span class="material-symbols-outlined text-sm opacity-70">volume_down</span>
+      <input id="music-volume-bar" class="w-full h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-white" type="range" min="0" max="100" value="40">
+      <span class="material-symbols-outlined text-sm opacity-70">volume_up</span>
+    </div>
+    <div class="flex items-center gap-1">
+      <button id="music-prev-btn" type="button" class="p-2 hover:bg-white/10 rounded-lg transition-colors" title="Pista anterior"><span class="material-symbols-outlined">skip_previous</span></button>
+      <button id="music-next-btn" type="button" class="p-2 hover:bg-white/10 rounded-lg transition-colors" title="Siguiente pista"><span class="material-symbols-outlined">skip_next</span></button>
+      <button type="button" class="p-2 hover:bg-white/10 rounded-lg transition-colors text-xs" data-opens="music-modal" title="Ver pistas">🎶</button>
     </div>
   </div>
+</div>
 
-  <!-- MODAL: Rompehielos · ¿Cómo te sientes hoy? -->
-  <div class="modal-backdrop" id="mood-modal" role="dialog" aria-modal="true" aria-labelledby="mood-title" hidden>
-    <div class="modal">
-      <span class="modal-confetti" aria-hidden="true">🧊</span>
-      <h2 id="mood-title">🎮 ¿Cómo te sientes hoy?</h2>
-      <p class="modal-lead">
-        Elige el emoji que mejor represente tu ánimo y compártelo con el equipo.
-      </p>
+<!-- MAIN -->
+<main class="max-w-[1280px] mx-auto px-4 md:px-12 py-8 md:py-12">
 
-      <form id="mood-form" autocomplete="off">
-        <div class="mood-grid" id="mood-grid"><!-- JS rellena --></div>
-
-        <div class="modal-actions" style="gap:8px; flex-wrap:wrap;">
-          <button type="button" class="btn btn-secondary" id="mood-clear-btn">🧹 Quitar mi ánimo</button>
-          <button type="button" class="btn-mini" id="mood-cancel-btn">Cancelar</button>
-          <button type="submit" class="btn btn-primary">✅ Compartir</button>
-        </div>
-      </form>
-
-      <div class="moods-wall" id="moods-wall" aria-live="polite" style="margin-top:18px"></div>
-    </div>
-  </div>
-
-  <!-- MODAL: Reproductor de música -->
-  <div class="modal-backdrop" id="music-modal" role="dialog" aria-modal="true" aria-labelledby="music-title" hidden>
-    <div class="modal" style="max-width:420px">
-      <span class="modal-confetti" aria-hidden="true">🎵</span>
-      <h2 id="music-title">🎶 Reproductor de carrera</h2>
-      <p class="modal-lead">
-        Música chiptune al estilo Mario Kart, generada en vivo en tu navegador.
-        Dale play y comencemos la retro con buen ritmo.
-      </p>
-
-      <div class="music-player">
-        <button type="button" id="music-modal-toggle" class="btn btn-primary btn-music-big">▶️ Reproducir</button>
-        <div class="music-meta">
-          <span id="music-track-name">Retro Kart Theme · 8-bit</span>
-          <span id="music-status">En pausa</span>
-        </div>
-        <label class="music-volume">
-          Volumen
-          <input type="range" id="music-volume" min="0" max="100" value="40" />
-        </label>
+  <!-- HERO -->
+  <section class="mb-12 md:mb-16">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
+      <div>
+        <h1 class="font-display text-3xl md:text-5xl font-extrabold mb-3 tracking-tight">🏁 Retro Mario Kart 🚗</h1>
+        <p class="text-base md:text-lg max-w-2xl text-slate-gray">
+          ¿No estás contento con la velocidad en el equipo? Prepárate para una retrospectiva tan imprevisible como una partida de Mario Kart. Esta vez será tanto una <strong>"futurespectiva"</strong> como una retrospectiva.
+        </p>
       </div>
-
-      <div class="modal-actions">
-        <button type="button" class="btn-mini" data-closes="music-modal">Cerrar</button>
+      <div class="flex flex-wrap gap-3 shrink-0">
+        <a href="#como-hacerlo" class="bg-luigi-green text-white px-6 py-3 rounded-xl border-2 border-slate-gray shadow-retro font-mono text-sm hover:-translate-y-1 transition-all">🚦 ¡Empezar carrera!</a>
+        <a href="#retro" class="bg-white text-ink-black px-6 py-3 rounded-xl border-2 border-slate-gray shadow-retro font-mono text-sm hover:bg-surface-low transition-all">📝 Ir a la retro</a>
       </div>
     </div>
-  </div>
 
-  <!-- MODAL: Objetivo de la retro -->
-  <div class="modal-backdrop" id="objective-modal" role="dialog" aria-modal="true" aria-labelledby="objective-title" hidden>
-    <div class="modal">
-      <span class="modal-confetti" aria-hidden="true">🎯</span>
-      <h2 id="objective-title">🎯 Objetivo de la retro</h2>
-      <p class="modal-lead">
-        Escribe el objetivo del sprint para que todo el equipo lo tenga visible.
-        Se sincroniza en tiempo real con tus compañeros.
-      </p>
-
-      <div class="objective-editor">
-        <textarea id="objective-text" rows="4" maxlength="800"
-          placeholder="Ej: Mejorar nuestra velocidad de entrega y anticipar los obstáculos del próximo sprint."></textarea>
-        <div class="objective-actions">
-          <button type="button" class="btn btn-primary" id="objective-save">💾 Guardar</button>
-          <button type="button" class="btn-mini" id="objective-copy">📋 Copiar</button>
-          <span class="objective-status" id="objective-status"></span>
-        </div>
-      </div>
-
-      <div class="modal-actions">
-        <button type="button" class="btn-mini" data-closes="objective-modal">Cerrar</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- MODAL: Proponer y votar acciones -->
-  <div class="modal-backdrop" id="actions-modal" role="dialog" aria-modal="true" aria-labelledby="actions-title" hidden>
-    <div class="modal" style="max-width:560px">
-      <span class="modal-confetti" aria-hidden="true">🏆</span>
-      <h2 id="actions-title">🏆 Acciones del próximo sprint</h2>
-      <p class="modal-lead">
-        Propongan hasta <strong>5 acciones</strong>. Todos los pilotos pueden votar las que quieran.
-      </p>
-
-      <div class="actions-panel" id="actions-panel">
-        <form class="actions-form" id="actions-form" autocomplete="off">
-          <input id="action-input" type="text" maxlength="240" placeholder="Escribe una acción para el próximo sprint…" />
-          <button type="submit" class="btn btn-primary">➕ Añadir</button>
-        </form>
-        <p class="actions-meta"><span id="actions-count">0</span> / 5 acciones · <button type="button" class="btn-mini" id="actions-clear">🗑️ Borrar todas</button></p>
-        <ul class="actions-list" id="actions-list" aria-live="polite"></ul>
-      </div>
-
-      <div class="modal-actions">
-        <button type="button" class="btn-mini" data-closes="actions-modal">Cerrar</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- HEADER -->
-  <header class="hero">
-    <div class="hero-bg">
-      <div class="road"></div>
-      <div class="cloud cloud-1">☁️</div>
-      <div class="cloud cloud-2">☁️</div>
-      <div class="cloud cloud-3">☁️</div>
-      <div class="hill hill-1"></div>
-      <div class="hill hill-2"></div>
+    <div id="board-timer" hidden class="mt-6 inline-flex items-center gap-3 bg-white border-2 border-slate-gray rounded-xl px-4 py-2 shadow-retro-sm">
+      <span class="text-2xl">⏱️</span>
+      <span class="font-mono text-xs text-slate-gray uppercase">Tiempo del tablero:</span>
+      <span id="timer-clock" class="font-display font-bold text-2xl text-mario-red">--:--</span>
+      <span id="timer-state" class="font-mono text-[10px] text-slate-gray uppercase"></span>
     </div>
 
-    <div class="hero-content">
-      <span class="badge">Retrospectiva Sprint #<span id="sprint-number" data-default="245">245</span></span>
-      <h1>🏁 Retro Mario Kart <span class="kart">🚗</span></h1>
-      <p class="subtitle">
-        ¿No estás contento con la velocidad en el equipo? Prepárate para una
-        retrospectiva tan imprevisible como una partida de Mario Kart.
-        Esta vez será tanto una <strong>“futurespectiva”</strong> como una retrospectiva.
-      </p>
-
-      <div class="hero-cta">
-        <a href="#como-hacerlo" class="btn btn-primary">🚦 ¡Empezar carrera!</a>
-        <a href="#retro" class="btn btn-secondary">📝 Ir a la retro</a>
+    <div id="admin-panel" hidden class="mt-6 grid gap-3 md:grid-cols-2 lg:grid-cols-3 bg-white border-2 border-slate-gray rounded-xl p-4 shadow-retro-sm">
+      <label class="flex flex-col gap-1">
+        <span class="font-mono text-[10px] text-slate-gray uppercase">Sprint #</span>
+        <input type="text" id="admin-sprint" maxlength="10" placeholder="245" class="border-2 border-slate-gray rounded-lg px-3 py-2 text-sm" />
+      </label>
+      <div class="flex items-end">
+        <button id="admin-sprint-save" class="bg-white border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono hover:bg-surface-low w-full">💾 Guardar sprint</button>
       </div>
-
-      <!-- Pilotos en pista -->
-      <div class="pilots-bar" id="pilots-bar">
-        <div class="pilots-info">
-          <span class="pilots-title">🏎️ Pilotos en pista:</span>
-          <div class="pilot-list" id="pilot-list"></div>
-        </div>
-        <div class="pilots-actions">
-          <span class="current-pilot" id="current-pilot" hidden></span>
-          <span class="conn-pill" id="conn-pill" data-state="connecting" title="Estado de conexión">
-            <span class="conn-dot" aria-hidden="true"></span>
-            <span class="conn-text">Conectando…</span>
-          </span>
-          <button class="btn-mini" id="music-toggle-btn" type="button" aria-pressed="false">⏸️ Pausar</button>
-          <button class="btn-mini" id="admin-toggle-btn" type="button" hidden>🔑 Modo admin</button>
-          <span class="admin-tag" id="admin-tag" hidden>👑 Admin</span>
-        </div>
-      </div>
-
-      <!-- Panel del admin (solo visible si soy admin) -->
-      <div class="admin-panel" id="admin-panel" hidden>
-        <div class="admin-row">
-          <label class="admin-field">
-            <span>Sprint #</span>
-            <input type="text" id="admin-sprint" maxlength="10" placeholder="245" />
-          </label>
-          <button class="btn-mini" id="admin-sprint-save">💾 Guardar sprint</button>
-        </div>
-        <div class="admin-row">
-          <label class="admin-field">
-            <span>Duración del tablero</span>
-            <select id="admin-timer-duration">
-              <option value="180">3 minutos</option>
-              <option value="300" selected>5 minutos</option>
-              <option value="600">10 minutos</option>
-            </select>
-          </label>
-          <button class="btn-mini" id="admin-board-toggle">🟢 Activar tablero</button>
-          <button class="btn-mini" id="admin-timer-pause" disabled>⏸️ Pausar</button>
-          <button class="btn-mini" id="admin-timer-reset">🔄 Reset</button>
-          <button class="btn-mini" id="admin-release">🚪 Salir admin</button>
-        </div>
-      </div>
-
-      <!-- Cronómetro del tablero (visible para todos cuando hay tiempo configurado) -->
-      <div class="board-timer" id="board-timer" hidden>
-        <span class="timer-icon">⏱️</span>
-        <span class="timer-label">Tiempo del tablero:</span>
-        <span class="timer-clock" id="timer-clock">--:--</span>
-        <span class="timer-state" id="timer-state"></span>
-      </div>
+      <label class="flex flex-col gap-1">
+        <span class="font-mono text-[10px] text-slate-gray uppercase">Duración del tablero</span>
+        <select id="admin-timer-duration" class="border-2 border-slate-gray rounded-lg px-3 py-2 text-sm bg-white">
+          <option value="180">3 minutos</option>
+          <option value="300" selected>5 minutos</option>
+          <option value="600">10 minutos</option>
+        </select>
+      </label>
+      <button id="admin-board-toggle" class="bg-luigi-green text-white border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono shadow-retro-sm">🟢 Activar tablero</button>
+      <button id="admin-timer-pause" disabled class="bg-white border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono hover:bg-surface-low disabled:opacity-50">⏸️ Pausar</button>
+      <button id="admin-timer-reset" class="bg-white border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono hover:bg-surface-low">🔄 Reset</button>
+      <button id="admin-release" class="bg-mario-red text-white border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono shadow-retro-sm md:col-span-2 lg:col-span-1">🚪 Salir admin</button>
     </div>
-  </header>
 
-  <!-- CÓMO HACERLO -->
-  <section id="como-hacerlo" class="section">
-    <div class="container">
-      <h2>🛣️ Cómo hacerlo</h2>
-      <p class="section-lead">
-        Sigue estos 12 pasos para guiar al equipo a través de la pista. Marca cada paso a medida que lo completes.
-      </p>
-
-      <ol class="steps">
-        <li class="step">
-          <label>
-            <input type="checkbox" class="step-check" />
-            <span class="step-num">1</span>
-            <div class="step-content">
-              <h3>🎬 Da la bienvenida al equipo (5 min)</h3>
-              <p>Pon música de Mario Kart, muestra la pista y explica que hoy correremos juntos como un equipo.</p>
-            </div>
-          </label>
-        </li>
-
-        <li class="step">
-          <label>
-            <input type="checkbox" class="step-check" />
-            <span class="step-num">2</span>
-            <div class="step-content">
-              <h3>🎯 Define el objetivo de la retro (3 min)</h3>
-              <p>Recuerda que buscamos mejorar nuestra velocidad y anticipar obstáculos del próximo sprint.</p>
-              <button type="button" class="btn-mini step-action" data-opens="objective-modal">🎯 Definir objetivo</button>
-            </div>
-          </label>
-        </li>
-
-        <li class="step">
-          <label>
-            <input type="checkbox" class="step-check" />
-            <span class="step-num">3</span>
-            <div class="step-content">
-              <h3>🧊 Rompehielo: elige tu personaje (5 min)</h3>
-              <p>Cada persona dice qué personaje de Mario Kart se siente hoy y por qué (Mario optimista, Bowser frustrado, Yoshi entusiasta…).</p>
-              <button type="button" class="btn-mini step-action" data-opens="mood-modal">🎮 Elegir mi ánimo</button>
-            </div>
-          </label>
-        </li>
-
-        <li class="step">
-          <label>
-            <input type="checkbox" class="step-check" />
-            <span class="step-num">4</span>
-            <div class="step-content">
-              <h3>🏁 Repasa el sprint anterior (5 min)</h3>
-              <p>Muestra los objetivos, métricas y eventos clave del sprint que termina.</p>
-            </div>
-          </label>
-        </li>
-
-        <li class="step">
-          <label>
-            <input type="checkbox" class="step-check" />
-            <span class="step-num">5</span>
-            <div class="step-content">
-              <h3>🍌 Pregunta 1 — Plátanos del pasado (5 min)</h3>
-              <p>“¿En qué plátanos nos resbalamos?” Cada persona escribe en qué obstáculos o errores tropezamos.</p>
-            </div>
-          </label>
-        </li>
-
-        <li class="step">
-          <label>
-            <input type="checkbox" class="step-check" />
-            <span class="step-num">6</span>
-            <div class="step-content">
-              <h3>⭐ Pregunta 2 — Potenciador que nos dio ventaja (5 min)</h3>
-              <p>“¿Qué potenciador nos dio una ventaja?” Anota qué prácticas, herramientas o decisiones nos aceleraron.</p>
-            </div>
-          </label>
-        </li>
-
-        <li class="step">
-          <label>
-            <input type="checkbox" class="step-check" />
-            <span class="step-num">7</span>
-            <div class="step-content">
-              <h3>🛤️ Pregunta 3 — Atajos que funcionaron (5 min)</h3>
-              <p>“¿Qué atajos nos ayudaron a la victoria?” Identifica caminos cortos que descubrimos durante el sprint.</p>
-            </div>
-          </label>
-        </li>
-
-        <li class="step">
-          <label>
-            <input type="checkbox" class="step-check" />
-            <span class="step-num">8</span>
-            <div class="step-content">
-              <h3>⚠️ Pregunta 4 — Plátanos futuros (5 min)</h3>
-              <p>“¿Con qué plátanos tenemos que tener cuidado en la ruta?” Anticipa riesgos del próximo sprint.</p>
-            </div>
-          </label>
-        </li>
-
-        <li class="step">
-          <label>
-            <input type="checkbox" class="step-check" />
-            <span class="step-num">9</span>
-            <div class="step-content">
-              <h3>🚀 Pregunta 5 — Potenciador para la victoria (5 min)</h3>
-              <p>“¿Qué potenciador podríamos tomar para asegurar nuestra victoria?” Define qué necesitamos activar.</p>
-            </div>
-          </label>
-        </li>
-
-        <li class="step">
-          <label>
-            <input type="checkbox" class="step-check" />
-            <span class="step-num">10</span>
-            <div class="step-content">
-              <h3>🗺️ Pregunta 6 — Abreviaturas (5 min)</h3>
-              <p>“¿Qué abreviatura podríamos usar?” ¿Qué camino corto podemos diseñar para el próximo sprint?</p>
-            </div>
-          </label>
-        </li>
-
-        <li class="step">
-          <label>
-            <input type="checkbox" class="step-check" />
-            <span class="step-num">11</span>
-            <div class="step-content">
-              <h3>🏆 Vota y prioriza acciones (10 min)</h3>
-              <p>Agrupa ideas similares, propone hasta 5 acciones concretas y voten cuáles llevan al próximo sprint.</p>
-              <button type="button" class="btn-mini step-action" data-opens="actions-modal">🏆 Proponer y votar</button>
-            </div>
-          </label>
-        </li>
-
-        <li class="step">
-          <label>
-            <input type="checkbox" class="step-check" />
-            <span class="step-num">12</span>
-            <div class="step-content">
-              <h3>🎉 Cierra con un check-out (3 min)</h3>
-              <p>Cada persona comparte una palabra sobre cómo se va de la retro. ¡Vuelta de honor y a la próxima carrera!</p>
-            </div>
-          </label>
-        </li>
-      </ol>
-
-      <div class="progress-wrapper">
-        <div class="progress-label">
-          Progreso: <span id="progress-text">0 / 12 pasos completados</span>
-        </div>
-        <div class="progress-bar">
-          <div class="progress-fill" id="progress-fill"></div>
-          <span class="progress-kart" id="progress-kart">🚗</span>
-          <span class="finish-flag" aria-hidden="true">🏁</span>
-        </div>
-      </div>
-    </div>
+    <p id="current-pilot" hidden class="mt-4 inline-block font-mono text-xs bg-white border-2 border-slate-gray rounded-full px-3 py-1 shadow-retro-sm"></p>
   </section>
 
-  <!-- TABLERO RETRO -->
-  <section id="retro" class="section section-alt" hidden>
-    <div class="container">
-      <h2>🏎️ Tablero — Retro Mario Kart</h2>
-      <p class="section-lead">
-        Cada participante puede añadir tarjetas en cada categoría en tiempo real.
-      </p>
+  <div class="flex flex-col lg:flex-row gap-6 lg:gap-8">
 
-      <!-- (cuando el tablero está inactivo, ocultamos el grid completo en vez de mostrar un aviso) -->
+    <!-- COLUMNA IZQ -->
+    <div class="lg:w-3/4 space-y-12 md:space-y-20 min-w-0">
 
-      <div class="board" id="board" hidden>
-        <!-- 5 · Plátanos pasado -->
-        <article class="card-column color-banana-past">
-          <header>
-            <span class="step-badge">Paso 5</span>
-            <span class="col-icon">🍌</span>
-            <h3>Plátanos donde resbalamos</h3>
-            <p>¿En qué plátanos nos resbalamos?</p>
-          </header>
-          <form class="add-form" data-cat="banana-past">
-            <input type="text" maxlength="200" placeholder="Escribe en qué tropezamos…" required />
-            <button type="submit" title="Añadir tarjeta">Añadir</button>
-          </form>
-          <ul class="card-list" data-cat="banana-past" aria-live="polite"></ul>
-        </article>
-
-        <!-- 6 · Potenciador pasado -->
-        <article class="card-column color-power-past">
-          <header>
-            <span class="step-badge">Paso 6</span>
-            <span class="col-icon">⭐</span>
-            <h3>Potenciador que nos dio ventaja</h3>
-            <p>¿Qué potenciador nos dio una ventaja?</p>
-          </header>
-          <form class="add-form" data-cat="power-past">
-            <input type="text" maxlength="200" placeholder="Escribe qué nos aceleró…" required />
-            <button type="submit" title="Añadir tarjeta">Añadir</button>
-          </form>
-          <ul class="card-list" data-cat="power-past" aria-live="polite"></ul>
-        </article>
-
-        <!-- 7 · Atajos pasado -->
-        <article class="card-column color-shortcut-past">
-          <header>
-            <span class="step-badge">Paso 7</span>
-            <span class="col-icon">🛤️</span>
-            <h3>Atajos a la victoria</h3>
-            <p>¿Qué atajos nos ayudaron a la victoria?</p>
-          </header>
-          <form class="add-form" data-cat="shortcut-past">
-            <input type="text" maxlength="200" placeholder="Escribe un atajo que funcionó…" required />
-            <button type="submit" title="Añadir tarjeta">Añadir</button>
-          </form>
-          <ul class="card-list" data-cat="shortcut-past" aria-live="polite"></ul>
-        </article>
-
-        <!-- 8 · Plátanos futuro -->
-        <article class="card-column color-banana-future">
-          <header>
-            <span class="step-badge">Paso 8</span>
-            <span class="col-icon">🍌</span>
-            <h3>Plátanos en la ruta</h3>
-            <p>¿Con qué plátanos tenemos que tener cuidado en la ruta?</p>
-          </header>
-          <form class="add-form" data-cat="banana-future">
-            <input type="text" maxlength="200" placeholder="Escribe un riesgo futuro…" required />
-            <button type="submit" title="Añadir tarjeta">Añadir</button>
-          </form>
-          <ul class="card-list" data-cat="banana-future" aria-live="polite"></ul>
-        </article>
-
-        <!-- 9 · Potenciador futuro -->
-        <article class="card-column color-power-future">
-          <header>
-            <span class="step-badge">Paso 9</span>
-            <span class="col-icon">🚀</span>
-            <h3>Potenciador para la victoria</h3>
-            <p>¿Qué potenciador podríamos tomar para asegurar nuestra victoria?</p>
-          </header>
-          <form class="add-form" data-cat="power-future">
-            <input type="text" maxlength="200" placeholder="Escribe un potenciador a activar…" required />
-            <button type="submit" title="Añadir tarjeta">Añadir</button>
-          </form>
-          <ul class="card-list" data-cat="power-future" aria-live="polite"></ul>
-        </article>
-
-        <!-- 10 · Abreviatura -->
-        <article class="card-column color-shortcut-future">
-          <header>
-            <span class="step-badge">Paso 10</span>
-            <span class="col-icon">🗺️</span>
-            <h3>Abreviatura</h3>
-            <p>¿Qué abreviatura podríamos usar?</p>
-          </header>
-          <form class="add-form" data-cat="shortcut-future">
-            <input type="text" maxlength="200" placeholder="Escribe un atajo a explorar…" required />
-            <button type="submit" title="Añadir tarjeta">Añadir</button>
-          </form>
-          <ul class="card-list" data-cat="shortcut-future" aria-live="polite"></ul>
-        </article>
-      </div>
-
-      <div class="board-actions" id="board-actions" hidden>
-        <button id="export-btn" class="btn btn-secondary admin-only" hidden>📊 Exportar a Excel</button>
-        <button id="clear-btn" class="btn btn-danger admin-only" hidden>🗑️ Borrar tablero</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- MINI-CARRERA -->
-  <section id="mini-race" class="section" hidden>
-    <div class="container">
-      <h2>🏁 Mini-carrera del tablero</h2>
-
-      <div class="race-panel">
-        <div class="race-track" id="race-track">
-          <div class="race-lane race-lane-finish" aria-hidden="true">🏁</div>
-          <div class="race-lanes" id="race-lanes"></div>
-        </div>
-
-        <div class="race-status" id="race-status" aria-live="polite" hidden>
-          <span class="status-msg" id="race-msg"></span>
-        </div>
-
-        <div class="race-results" id="race-results" hidden>
-          <h3>🏆 Podio</h3>
-          <div class="podium-stage" id="podium-stage">
-            <div class="podium-spot podium-silver" data-place="2">
-              <div class="podium-pilot" id="podium-2"></div>
-              <div class="podium-block"><span class="podium-num">2</span></div>
+      <!-- Cómo hacerlo -->
+      <section id="como-hacerlo">
+        <div class="flex items-end justify-between mb-6 md:mb-8 gap-4 flex-wrap">
+          <div>
+            <h2 class="font-display font-bold text-2xl md:text-3xl">🛣️ Cómo hacerlo</h2>
+            <p class="text-slate-gray text-sm">Sigue estos 12 pasos para guiar al equipo a través de la pista.</p>
+          </div>
+          <div class="w-full sm:w-64 shrink-0">
+            <div class="flex items-center justify-between mb-1">
+              <span class="font-mono text-[10px] text-slate-gray uppercase">Progreso</span>
+              <span id="progress-text" class="text-xs font-bold text-slate-gray">0 / 12 pasos</span>
             </div>
-            <div class="podium-spot podium-gold" data-place="1">
-              <div class="podium-pilot" id="podium-1"></div>
-              <div class="podium-block"><span class="podium-num">1</span></div>
-            </div>
-            <div class="podium-spot podium-bronze" data-place="3">
-              <div class="podium-pilot" id="podium-3"></div>
-              <div class="podium-block"><span class="podium-num">3</span></div>
+            <div class="relative h-3 bg-surface-high rounded-full overflow-hidden border border-slate-gray/20">
+              <div id="progress-fill" class="h-full bg-luigi-green shadow-[0_0_10px_rgba(36,161,72,0.5)] transition-all" style="width:0%"></div>
+              <span id="progress-kart" class="absolute top-1/2 -translate-y-1/2 text-[10px]" style="left:0%">🚗</span>
+              <span class="finish-flag absolute right-1 top-1/2 -translate-y-1/2 text-[10px]" aria-hidden="true">🏁</span>
             </div>
           </div>
-          <div class="losers" id="podium-losers" hidden>
-            <h4>😭 Fuera del podio</h4>
-            <ul class="losers-list" id="losers-list"></ul>
+        </div>
+
+        <div class="relative" data-carousel="steps">
+          <ol id="steps-carousel" class="steps grid grid-flow-col auto-cols-[100%] sm:auto-cols-[50%] xl:auto-cols-[33.333%] gap-4 md:gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-2 -mx-1 px-1 list-none">
+            <li class="step snap-start">
+              <label class="block bg-white p-5 border-2 border-slate-gray rounded-2xl shadow-retro-sm flex flex-col h-full cursor-pointer hover:-translate-y-0.5 transition-all">
+                <div class="flex justify-between items-start mb-4">
+                  <span class="bg-mario-red text-white font-mono text-[10px] px-2 py-1 rounded-md">PASO <span class="step-num">1</span></span>
+                  <input type="checkbox" class="step-check w-5 h-5" />
+                </div>
+                <div class="step-content flex-1">
+                  <h3 class="font-display text-base md:text-lg font-bold mb-2">🎬 Da la bienvenida al equipo (5 min)</h3>
+                  <p class="text-sm text-slate-gray">Pon música de Mario Kart, muestra la pista y explica que hoy correremos juntos como un equipo.</p>
+                </div>
+                <button type="button" class="btn-mini step-action mt-4 self-start text-xs font-mono bg-toad-blue text-white px-3 py-1.5 rounded-full border-2 border-slate-gray shadow-retro-sm" data-opens="music-modal">🎶 Abrir reproductor</button>
+              </label>
+            </li>
+            <li class="step snap-start">
+              <label class="block bg-white p-5 border-2 border-slate-gray rounded-2xl shadow-retro-sm flex flex-col h-full cursor-pointer hover:-translate-y-0.5 transition-all">
+                <div class="flex justify-between items-start mb-4">
+                  <span class="bg-toad-blue text-white font-mono text-[10px] px-2 py-1 rounded-md">PASO <span class="step-num">2</span></span>
+                  <input type="checkbox" class="step-check w-5 h-5" />
+                </div>
+                <div class="step-content flex-1">
+                  <h3 class="font-display text-base md:text-lg font-bold mb-2">🎯 Define el objetivo de la retro (3 min)</h3>
+                  <p class="text-sm text-slate-gray">Recuerda que buscamos mejorar nuestra velocidad y anticipar obstáculos del próximo sprint.</p>
+                </div>
+                <button type="button" class="btn-mini step-action mt-4 self-start text-xs font-mono bg-toad-blue text-white px-3 py-1.5 rounded-full border-2 border-slate-gray shadow-retro-sm" data-opens="objective-modal">🎯 Definir objetivo</button>
+              </label>
+            </li>
+            <li class="step snap-start">
+              <label class="block bg-white p-5 border-2 border-slate-gray rounded-2xl shadow-retro-sm flex flex-col h-full cursor-pointer hover:-translate-y-0.5 transition-all">
+                <div class="flex justify-between items-start mb-4">
+                  <span class="bg-luigi-green text-white font-mono text-[10px] px-2 py-1 rounded-md">PASO <span class="step-num">3</span></span>
+                  <input type="checkbox" class="step-check w-5 h-5" />
+                </div>
+                <div class="step-content flex-1">
+                  <h3 class="font-display text-base md:text-lg font-bold mb-2">🧊 Rompehielo: elige tu personaje (5 min)</h3>
+                  <p class="text-sm text-slate-gray">Cada persona dice qué personaje de Mario Kart se siente hoy y por qué.</p>
+                </div>
+                <button type="button" class="btn-mini step-action mt-4 self-start text-xs font-mono bg-luigi-green text-white px-3 py-1.5 rounded-full border-2 border-slate-gray shadow-retro-sm" data-opens="mood-modal">🎮 Elegir mi ánimo</button>
+              </label>
+            </li>
+            <li class="step snap-start">
+              <label class="block bg-white p-5 border-2 border-slate-gray rounded-2xl shadow-retro-sm flex flex-col h-full cursor-pointer hover:-translate-y-0.5 transition-all">
+                <div class="flex justify-between items-start mb-4">
+                  <span class="bg-peach-pink text-white font-mono text-[10px] px-2 py-1 rounded-md">PASO <span class="step-num">4</span></span>
+                  <input type="checkbox" class="step-check w-5 h-5" />
+                </div>
+                <div class="step-content flex-1">
+                  <h3 class="font-display text-base md:text-lg font-bold mb-2">🏁 Repasa el sprint anterior (5 min)</h3>
+                  <p class="text-sm text-slate-gray">Muestra los objetivos, métricas y eventos clave del sprint que termina.</p>
+                </div>
+              </label>
+            </li>
+            <li class="step snap-start">
+              <label class="block bg-white p-5 border-2 border-slate-gray rounded-2xl shadow-retro-sm flex flex-col h-full cursor-pointer hover:-translate-y-0.5 transition-all border-l-8 border-l-star-gold">
+                <div class="flex justify-between items-start mb-4">
+                  <span class="bg-star-gold text-ink-black font-mono text-[10px] px-2 py-1 rounded-md">PASO <span class="step-num">5</span></span>
+                  <input type="checkbox" class="step-check w-5 h-5" />
+                </div>
+                <div class="step-content flex-1">
+                  <h3 class="font-display text-base md:text-lg font-bold mb-2">🍌 Pregunta 1 — Plátanos del pasado (5 min)</h3>
+                  <p class="text-sm text-slate-gray">"¿En qué plátanos nos resbalamos?" Activa el tablero al marcar este paso.</p>
+                </div>
+              </label>
+            </li>
+            <li class="step snap-start">
+              <label class="block bg-white p-5 border-2 border-slate-gray rounded-2xl shadow-retro-sm flex flex-col h-full cursor-pointer hover:-translate-y-0.5 transition-all border-l-8 border-l-toad-blue">
+                <div class="flex justify-between items-start mb-4">
+                  <span class="bg-toad-blue text-white font-mono text-[10px] px-2 py-1 rounded-md">PASO <span class="step-num">6</span></span>
+                  <input type="checkbox" class="step-check w-5 h-5" />
+                </div>
+                <div class="step-content flex-1">
+                  <h3 class="font-display text-base md:text-lg font-bold mb-2">⭐ Pregunta 2 — Potenciador que nos dio ventaja (5 min)</h3>
+                  <p class="text-sm text-slate-gray">"¿Qué potenciador nos dio una ventaja?" Anota prácticas o decisiones que aceleraron.</p>
+                </div>
+              </label>
+            </li>
+            <li class="step snap-start">
+              <label class="block bg-white p-5 border-2 border-slate-gray rounded-2xl shadow-retro-sm flex flex-col h-full cursor-pointer hover:-translate-y-0.5 transition-all border-l-8 border-l-luigi-green">
+                <div class="flex justify-between items-start mb-4">
+                  <span class="bg-luigi-green text-white font-mono text-[10px] px-2 py-1 rounded-md">PASO <span class="step-num">7</span></span>
+                  <input type="checkbox" class="step-check w-5 h-5" />
+                </div>
+                <div class="step-content flex-1">
+                  <h3 class="font-display text-base md:text-lg font-bold mb-2">🛤️ Pregunta 3 — Atajos que funcionaron (5 min)</h3>
+                  <p class="text-sm text-slate-gray">"¿Qué atajos nos ayudaron a la victoria?" Caminos cortos que descubrimos.</p>
+                </div>
+              </label>
+            </li>
+            <li class="step snap-start">
+              <label class="block bg-white p-5 border-2 border-slate-gray rounded-2xl shadow-retro-sm flex flex-col h-full cursor-pointer hover:-translate-y-0.5 transition-all border-l-8 border-l-mario-red">
+                <div class="flex justify-between items-start mb-4">
+                  <span class="bg-mario-red text-white font-mono text-[10px] px-2 py-1 rounded-md">PASO <span class="step-num">8</span></span>
+                  <input type="checkbox" class="step-check w-5 h-5" />
+                </div>
+                <div class="step-content flex-1">
+                  <h3 class="font-display text-base md:text-lg font-bold mb-2">⚠️ Pregunta 4 — Plátanos futuros (5 min)</h3>
+                  <p class="text-sm text-slate-gray">"¿Con qué plátanos tenemos que tener cuidado?" Anticipa riesgos del próximo sprint.</p>
+                </div>
+              </label>
+            </li>
+            <li class="step snap-start">
+              <label class="block bg-white p-5 border-2 border-slate-gray rounded-2xl shadow-retro-sm flex flex-col h-full cursor-pointer hover:-translate-y-0.5 transition-all border-l-8 border-l-toad-blue">
+                <div class="flex justify-between items-start mb-4">
+                  <span class="bg-toad-blue text-white font-mono text-[10px] px-2 py-1 rounded-md">PASO <span class="step-num">9</span></span>
+                  <input type="checkbox" class="step-check w-5 h-5" />
+                </div>
+                <div class="step-content flex-1">
+                  <h3 class="font-display text-base md:text-lg font-bold mb-2">🚀 Pregunta 5 — Potenciador para la victoria (5 min)</h3>
+                  <p class="text-sm text-slate-gray">"¿Qué potenciador podríamos tomar para asegurar nuestra victoria?"</p>
+                </div>
+              </label>
+            </li>
+            <li class="step snap-start">
+              <label class="block bg-white p-5 border-2 border-slate-gray rounded-2xl shadow-retro-sm flex flex-col h-full cursor-pointer hover:-translate-y-0.5 transition-all border-l-8 border-l-luigi-green">
+                <div class="flex justify-between items-start mb-4">
+                  <span class="bg-luigi-green text-white font-mono text-[10px] px-2 py-1 rounded-md">PASO <span class="step-num">10</span></span>
+                  <input type="checkbox" class="step-check w-5 h-5" />
+                </div>
+                <div class="step-content flex-1">
+                  <h3 class="font-display text-base md:text-lg font-bold mb-2">🗺️ Pregunta 6 — Abreviaturas (5 min)</h3>
+                  <p class="text-sm text-slate-gray">"¿Qué abreviatura podríamos usar?" Camino corto para el próximo sprint.</p>
+                </div>
+              </label>
+            </li>
+            <li class="step snap-start">
+              <label class="block bg-white p-5 border-2 border-slate-gray rounded-2xl shadow-retro-sm flex flex-col h-full cursor-pointer hover:-translate-y-0.5 transition-all">
+                <div class="flex justify-between items-start mb-4">
+                  <span class="bg-star-gold text-ink-black font-mono text-[10px] px-2 py-1 rounded-md">PASO <span class="step-num">11</span></span>
+                  <input type="checkbox" class="step-check w-5 h-5" />
+                </div>
+                <div class="step-content flex-1">
+                  <h3 class="font-display text-base md:text-lg font-bold mb-2">🏆 Vota y prioriza acciones (10 min)</h3>
+                  <p class="text-sm text-slate-gray">Agrupa ideas similares, propone hasta 5 acciones y voten cuáles llevan al próximo sprint.</p>
+                </div>
+                <button type="button" class="btn-mini step-action mt-4 self-start text-xs font-mono bg-star-gold text-ink-black px-3 py-1.5 rounded-full border-2 border-slate-gray shadow-retro-sm" data-opens="actions-modal">🏆 Proponer y votar</button>
+              </label>
+            </li>
+            <li class="step snap-start">
+              <label class="block bg-white p-5 border-2 border-slate-gray rounded-2xl shadow-retro-sm flex flex-col h-full cursor-pointer hover:-translate-y-0.5 transition-all">
+                <div class="flex justify-between items-start mb-4">
+                  <span class="bg-peach-pink text-white font-mono text-[10px] px-2 py-1 rounded-md">PASO <span class="step-num">12</span></span>
+                  <input type="checkbox" class="step-check w-5 h-5" />
+                </div>
+                <div class="step-content flex-1">
+                  <h3 class="font-display text-base md:text-lg font-bold mb-2">🎉 Cierra con un check-out (3 min)</h3>
+                  <p class="text-sm text-slate-gray">Cada persona comparte una palabra sobre cómo se va de la retro. ¡Vuelta de honor!</p>
+                </div>
+              </label>
+            </li>
+          </ol>
+
+          <div class="flex items-center justify-center gap-3 mt-4">
+            <button data-carousel-prev="steps" class="w-10 h-10 rounded-full bg-white border-2 border-slate-gray shadow-retro-sm flex items-center justify-center hover:bg-surface-low transition-all" aria-label="Anterior">
+              <span class="material-symbols-outlined">chevron_left</span>
+            </button>
+            <span id="steps-carousel-pos" class="font-mono text-xs text-slate-gray">1 / 12</span>
+            <button data-carousel-next="steps" class="w-10 h-10 rounded-full bg-white border-2 border-slate-gray shadow-retro-sm flex items-center justify-center hover:bg-surface-low transition-all" aria-label="Siguiente">
+              <span class="material-symbols-outlined">chevron_right</span>
+            </button>
           </div>
         </div>
-      </div>
+      </section>
+
+      <!-- Tablero -->
+      <section id="retro" hidden class="space-y-6">
+        <div class="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 border-b-4 border-slate-gray pb-4">
+          <div>
+            <h2 class="font-display font-bold text-2xl md:text-3xl">🏎️ Tablero — Retro Mario Kart</h2>
+            <p class="text-sm text-slate-gray">Cada participante puede añadir tarjetas en cada categoría en tiempo real.</p>
+          </div>
+          <div id="board-actions" hidden class="flex gap-2">
+            <button id="export-btn" class="admin-only bg-white px-3 py-2 rounded-xl border-2 border-slate-gray shadow-retro-sm font-mono text-xs hover:bg-surface-low" hidden>📊 Exportar</button>
+            <button id="clear-btn" class="admin-only bg-white text-mario-red px-3 py-2 rounded-xl border-2 border-slate-gray shadow-retro-sm font-mono text-xs hover:bg-mario-red/10" hidden>🗑️ Borrar</button>
+          </div>
+        </div>
+
+        <div class="relative" data-carousel="board">
+          <div id="board" hidden class="grid grid-flow-col auto-cols-[90%] sm:auto-cols-[48%] xl:auto-cols-[33.333%] gap-4 md:gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-2 -mx-1 px-1">
+
+            <article class="card-column color-banana-past snap-start flex flex-col min-h-[450px] bg-white rounded-2xl border-2 border-slate-gray border-l-8 border-l-star-gold overflow-hidden shadow-retro-sm">
+              <header class="p-4 border-b border-slate-gray/20">
+                <span class="step-badge font-mono text-[10px] text-slate-gray uppercase block">Paso 5</span>
+                <h3 class="font-bold text-sm flex items-center gap-2"><span class="col-icon text-lg">🍌</span> Plátanos donde resbalamos</h3>
+                <p class="text-xs text-slate-gray mt-1">¿En qué plátanos nos resbalamos?</p>
+              </header>
+              <ul class="card-list flex-1 p-3 space-y-3 overflow-y-auto" data-cat="banana-past" aria-live="polite"></ul>
+              <form class="add-form p-3 border-t border-slate-gray/20" data-cat="banana-past">
+                <input type="text" maxlength="200" placeholder="Escribe en qué tropezamos…" required class="w-full bg-surface border-2 border-dashed border-slate-gray/40 rounded-xl px-3 py-2 text-sm" />
+                <button type="submit" class="hidden">Añadir</button>
+              </form>
+            </article>
+
+            <article class="card-column color-power-past snap-start flex flex-col min-h-[450px] bg-white rounded-2xl border-2 border-slate-gray border-l-8 border-l-toad-blue overflow-hidden shadow-retro-sm">
+              <header class="p-4 border-b border-slate-gray/20">
+                <span class="step-badge font-mono text-[10px] text-slate-gray uppercase block">Paso 6</span>
+                <h3 class="font-bold text-sm flex items-center gap-2"><span class="col-icon text-lg">⭐</span> Potenciador que nos dio ventaja</h3>
+                <p class="text-xs text-slate-gray mt-1">¿Qué potenciador nos dio una ventaja?</p>
+              </header>
+              <ul class="card-list flex-1 p-3 space-y-3 overflow-y-auto" data-cat="power-past" aria-live="polite"></ul>
+              <form class="add-form p-3 border-t border-slate-gray/20" data-cat="power-past">
+                <input type="text" maxlength="200" placeholder="Escribe qué nos aceleró…" required class="w-full bg-surface border-2 border-dashed border-slate-gray/40 rounded-xl px-3 py-2 text-sm" />
+                <button type="submit" class="hidden">Añadir</button>
+              </form>
+            </article>
+
+            <article class="card-column color-shortcut-past snap-start flex flex-col min-h-[450px] bg-white rounded-2xl border-2 border-slate-gray border-l-8 border-l-luigi-green overflow-hidden shadow-retro-sm">
+              <header class="p-4 border-b border-slate-gray/20">
+                <span class="step-badge font-mono text-[10px] text-slate-gray uppercase block">Paso 7</span>
+                <h3 class="font-bold text-sm flex items-center gap-2"><span class="col-icon text-lg">🛤️</span> Atajos a la victoria</h3>
+                <p class="text-xs text-slate-gray mt-1">¿Qué atajos nos ayudaron a la victoria?</p>
+              </header>
+              <ul class="card-list flex-1 p-3 space-y-3 overflow-y-auto" data-cat="shortcut-past" aria-live="polite"></ul>
+              <form class="add-form p-3 border-t border-slate-gray/20" data-cat="shortcut-past">
+                <input type="text" maxlength="200" placeholder="Escribe un atajo que funcionó…" required class="w-full bg-surface border-2 border-dashed border-slate-gray/40 rounded-xl px-3 py-2 text-sm" />
+                <button type="submit" class="hidden">Añadir</button>
+              </form>
+            </article>
+
+            <article class="card-column color-banana-future snap-start flex flex-col min-h-[450px] bg-white rounded-2xl border-2 border-slate-gray border-l-8 border-l-mario-red overflow-hidden shadow-retro-sm">
+              <header class="p-4 border-b border-slate-gray/20">
+                <span class="step-badge font-mono text-[10px] text-slate-gray uppercase block">Paso 8</span>
+                <h3 class="font-bold text-sm flex items-center gap-2"><span class="col-icon text-lg">🍌</span> Plátanos en la ruta</h3>
+                <p class="text-xs text-slate-gray mt-1">¿Con qué plátanos tenemos que tener cuidado en la ruta?</p>
+              </header>
+              <ul class="card-list flex-1 p-3 space-y-3 overflow-y-auto" data-cat="banana-future" aria-live="polite"></ul>
+              <form class="add-form p-3 border-t border-slate-gray/20" data-cat="banana-future">
+                <input type="text" maxlength="200" placeholder="Escribe un riesgo futuro…" required class="w-full bg-surface border-2 border-dashed border-slate-gray/40 rounded-xl px-3 py-2 text-sm" />
+                <button type="submit" class="hidden">Añadir</button>
+              </form>
+            </article>
+
+            <article class="card-column color-power-future snap-start flex flex-col min-h-[450px] bg-white rounded-2xl border-2 border-slate-gray border-l-8 border-l-toad-blue overflow-hidden shadow-retro-sm">
+              <header class="p-4 border-b border-slate-gray/20">
+                <span class="step-badge font-mono text-[10px] text-slate-gray uppercase block">Paso 9</span>
+                <h3 class="font-bold text-sm flex items-center gap-2"><span class="col-icon text-lg">🚀</span> Potenciador para la victoria</h3>
+                <p class="text-xs text-slate-gray mt-1">¿Qué potenciador podríamos tomar para asegurar nuestra victoria?</p>
+              </header>
+              <ul class="card-list flex-1 p-3 space-y-3 overflow-y-auto" data-cat="power-future" aria-live="polite"></ul>
+              <form class="add-form p-3 border-t border-slate-gray/20" data-cat="power-future">
+                <input type="text" maxlength="200" placeholder="Escribe un potenciador a activar…" required class="w-full bg-surface border-2 border-dashed border-slate-gray/40 rounded-xl px-3 py-2 text-sm" />
+                <button type="submit" class="hidden">Añadir</button>
+              </form>
+            </article>
+
+            <article class="card-column color-shortcut-future snap-start flex flex-col min-h-[450px] bg-white rounded-2xl border-2 border-slate-gray border-l-8 border-l-luigi-green overflow-hidden shadow-retro-sm">
+              <header class="p-4 border-b border-slate-gray/20">
+                <span class="step-badge font-mono text-[10px] text-slate-gray uppercase block">Paso 10</span>
+                <h3 class="font-bold text-sm flex items-center gap-2"><span class="col-icon text-lg">🗺️</span> Abreviatura</h3>
+                <p class="text-xs text-slate-gray mt-1">¿Qué abreviatura podríamos usar?</p>
+              </header>
+              <ul class="card-list flex-1 p-3 space-y-3 overflow-y-auto" data-cat="shortcut-future" aria-live="polite"></ul>
+              <form class="add-form p-3 border-t border-slate-gray/20" data-cat="shortcut-future">
+                <input type="text" maxlength="200" placeholder="Escribe un atajo a explorar…" required class="w-full bg-surface border-2 border-dashed border-slate-gray/40 rounded-xl px-3 py-2 text-sm" />
+                <button type="submit" class="hidden">Añadir</button>
+              </form>
+            </article>
+          </div>
+
+          <div class="flex items-center justify-center gap-3 mt-4">
+            <button data-carousel-prev="board" class="w-10 h-10 rounded-full bg-white border-2 border-slate-gray shadow-retro-sm flex items-center justify-center hover:bg-surface-low transition-all" aria-label="Anterior columna">
+              <span class="material-symbols-outlined">chevron_left</span>
+            </button>
+            <span id="board-carousel-pos" class="font-mono text-xs text-slate-gray">1 / 6</span>
+            <button data-carousel-next="board" class="w-10 h-10 rounded-full bg-white border-2 border-slate-gray shadow-retro-sm flex items-center justify-center hover:bg-surface-low transition-all" aria-label="Siguiente columna">
+              <span class="material-symbols-outlined">chevron_right</span>
+            </button>
+          </div>
+        </div>
+      </section>
     </div>
-  </section>
 
-  <!-- Toasts -->
-  <div class="toast-stack" id="toast-stack" aria-live="polite" aria-atomic="true"></div>
+    <!-- COLUMNA DER -->
+    <aside class="lg:w-1/4 space-y-6">
 
-  <footer class="footer">
-    <p>🏁 Retrospectiva Mario Kart · Sprint #<span id="sprint-number-footer">245</span></p>
-  </footer>
+      <section id="mini-race" hidden class="bg-white border-2 border-slate-gray rounded-2xl overflow-hidden shadow-retro lg:sticky lg:top-24">
+        <div class="bg-ink-black text-white p-4 flex items-center justify-between">
+          <h3 class="font-display text-base font-bold">🏁 Pista de Carreras</h3>
+          <span class="material-symbols-outlined text-star-gold animate-pulse">emoji_events</span>
+        </div>
+        <div class="p-4 md:p-5">
+          <div id="race-track" class="relative h-44 bg-slate-gray rounded-2xl p-3 border-b-4 border-slate-gray/50 overflow-hidden mb-6 track-pattern">
+            <div class="absolute top-1/2 left-0 right-0 h-1 border-t-2 border-dashed border-white/30 -translate-y-1/2"></div>
+            <div class="absolute right-0 top-0 bottom-0 w-7 checkered-flag border-l-2 border-slate-gray"></div>
+            <div class="race-lane race-lane-finish hidden" aria-hidden="true">🏁</div>
+            <div id="race-lanes" class="race-lanes relative h-full flex flex-col justify-around"></div>
+          </div>
+          <div class="race-status" id="race-status" aria-live="polite" hidden><span class="status-msg" id="race-msg"></span></div>
 
-  <script src="app.js"></script>
+          <div class="race-results" id="race-results" hidden>
+            <h3 class="font-mono text-xs uppercase text-slate-gray mb-2 text-center">🏆 Podio</h3>
+            <div class="podium-stage flex items-end justify-center gap-2 h-36" id="podium-stage">
+              <div class="podium-spot podium-silver flex flex-col items-center flex-1" data-place="2">
+                <div class="podium-pilot text-xs font-bold mb-1 text-center min-h-[32px] flex flex-col items-center justify-end" id="podium-2"></div>
+                <div class="podium-block podium-2 w-full bg-surface-high border-2 border-slate-gray rounded-t-xl flex items-center justify-center font-bold text-lg text-slate-gray"><span class="podium-num">2</span></div>
+              </div>
+              <div class="podium-spot podium-gold flex flex-col items-center flex-1" data-place="1">
+                <div class="podium-pilot text-xs font-bold mb-1 text-center min-h-[32px] flex flex-col items-center justify-end" id="podium-1"></div>
+                <div class="podium-block podium-1 w-full bg-star-gold/40 border-2 border-star-gold rounded-t-xl flex items-center justify-center font-bold text-2xl text-ink-black"><span class="podium-num">1</span></div>
+              </div>
+              <div class="podium-spot podium-bronze flex flex-col items-center flex-1" data-place="3">
+                <div class="podium-pilot text-xs font-bold mb-1 text-center min-h-[32px] flex flex-col items-center justify-end" id="podium-3"></div>
+                <div class="podium-block podium-3 w-full bg-peach-pink/20 border-2 border-peach-pink rounded-t-xl flex items-center justify-center font-bold text-base text-peach-pink"><span class="podium-num">3</span></div>
+              </div>
+            </div>
+            <div class="losers mt-4" id="podium-losers" hidden>
+              <h4 class="font-mono text-[10px] uppercase text-slate-gray mb-2">😭 Fuera del podio</h4>
+              <ul class="losers-list space-y-1" id="losers-list"></ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="bg-surface-low border-2 border-slate-gray rounded-2xl p-5 shadow-retro-sm">
+        <div class="flex items-center justify-between mb-3">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-toad-blue">target</span>
+            <h3 class="font-display font-bold text-base">Objetivo</h3>
+          </div>
+          <button class="p-1 hover:bg-slate-gray/10 rounded" data-opens="objective-modal" title="Editar objetivo"><span class="material-symbols-outlined text-sm">edit</span></button>
+        </div>
+        <p id="objective-display" class="text-sm italic text-slate-gray px-3 py-2 border-l-2 border-toad-blue min-h-[40px]">
+          Aún no se ha definido un objetivo. Pulsa ✏️ para escribirlo.
+        </p>
+      </section>
+
+    </aside>
+  </div>
+</main>
+
+<div class="toast-stack fixed top-4 right-4 z-[100] flex flex-col gap-2" id="toast-stack" aria-live="polite" aria-atomic="true"></div>
+
+<footer class="mt-16 border-t-2 border-slate-gray/10 bg-surface-low py-12">
+  <div class="max-w-[1280px] mx-auto px-4 text-center">
+    <p class="font-display font-bold text-2xl italic uppercase tracking-tighter text-slate-gray/40 mb-4">🏁 Mario Retro</p>
+    <p class="text-sm text-slate-gray">Retrospectiva Mario Kart · Sprint #<span id="sprint-number-footer">245</span> · <span id="year-footer">2026</span></p>
+    <div class="flex gap-3 mt-4 justify-center">
+      <span class="w-3 h-3 rounded-full bg-mario-red"></span>
+      <span class="w-3 h-3 rounded-full bg-luigi-green"></span>
+      <span class="w-3 h-3 rounded-full bg-toad-blue"></span>
+      <span class="w-3 h-3 rounded-full bg-star-gold"></span>
+    </div>
+  </div>
+</footer>
+
+<script src="app.js"></script>
 </body>
 </html>
