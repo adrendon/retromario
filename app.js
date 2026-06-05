@@ -238,18 +238,35 @@ function normalizeCards(raw) {
   return out;
 }
 
+function applyServerState(s, { render = true } = {}) {
+  cards  = normalizeCards(s.cards);
+  pilots = Array.isArray(s.pilots) ? s.pilots : [];
+  allPilots = Array.isArray(s.allPilots) ? s.allPilots : pilots.slice();
+  objective = typeof s.objective === 'string' ? s.objective : '';
+  moods   = Array.isArray(s.moods) ? s.moods : [];
+  actions = Array.isArray(s.actions) ? s.actions : [];
+
+  applyBoardActive(!!s.boardActive);
+  if (Array.isArray(s.steps)) applyStepsFromServer(s.steps);
+  if (s.race) applyRaceState(s.race);
+  if (typeof s.sprint === 'string') applySprint(s.sprint);
+  if (s.timer) applyTimerState(s.timer);
+  if (typeof s.adminTaken === 'boolean') applyAdminTaken(s.adminTaken);
+
+  if (render) {
+    renderAll();
+    renderPilots();
+    renderObjective();
+    renderMoods();
+    renderActions();
+  }
+}
+
 async function loadInitial() {
   if (SERVER_MODE) {
     const r = await fetch('/api/state');
     const s = await r.json();
-    cards  = normalizeCards(s.cards);
-    pilots = Array.isArray(s.pilots) ? s.pilots : [];
-    allPilots = Array.isArray(s.allPilots) ? s.allPilots : pilots.slice();
-    objective = typeof s.objective === 'string' ? s.objective : '';
-    moods   = Array.isArray(s.moods) ? s.moods : [];
-    actions = Array.isArray(s.actions) ? s.actions : [];
-    applyBoardActive(!!s.boardActive);
-    if (Array.isArray(s.steps)) applyStepsFromServer(s.steps);
+    applyServerState(s, { render: false });
   } else {
     cards  = normalizeCards(
       readJSON(STORAGE_KEY, null) || readJSON('mario-kart-retro-cards-v1', null) || {}
@@ -1217,20 +1234,7 @@ function connectSSE() {
     } catch {}
   });
   es.addEventListener('snapshot', e => {
-    const s = JSON.parse(e.data);
-    cards  = normalizeCards(s.cards);
-    pilots = Array.isArray(s.pilots) ? s.pilots : [];
-    allPilots = Array.isArray(s.allPilots) ? s.allPilots : pilots.slice();
-    objective = typeof s.objective === 'string' ? s.objective : '';
-    moods   = Array.isArray(s.moods) ? s.moods : [];
-    actions = Array.isArray(s.actions) ? s.actions : [];
-    applyBoardActive(!!s.boardActive);
-    if (Array.isArray(s.steps)) applyStepsFromServer(s.steps);
-    if (s.race) applyRaceState(s.race);
-    if (typeof s.sprint === 'string') applySprint(s.sprint);
-    if (s.timer) applyTimerState(s.timer);
-    if (typeof s.adminTaken === 'boolean') applyAdminTaken(s.adminTaken);
-    renderAll(); renderPilots(); renderObjective(); renderMoods(); renderActions();
+    try { applyServerState(JSON.parse(e.data)); } catch {}
   });
   es.addEventListener('card:add', e => {
     const { cat, card } = JSON.parse(e.data);
@@ -1298,27 +1302,24 @@ function connectSSE() {
   };
 }
 
-/* Fallback: cada 10s pedimos el estado completo por si SSE perdió algún evento
-   (Render free a veces corta la conexión SSE silenciosamente). */
+/* Fallback: pedimos el estado completo por si SSE perdió algún evento.
+   Render/proxies a veces dejan la conexión abierta pero no entregan eventos;
+   este poll evita que el tablero/cronómetro requiera recargar la página. */
 if (SERVER_MODE) {
   setInterval(async () => {
     try {
       const r = await fetch('/api/state');
       if (!r.ok) return;
       const s = await r.json();
-      if (Array.isArray(s.pilots)) {
-        const same = s.pilots.length === pilots.length &&
-                     s.pilots.every((p, i) => pilots[i] && p.name === pilots[i].name);
-        if (!same) { pilots = s.pilots; renderPilots(); }
-      }
-      if (Array.isArray(s.allPilots)) allPilots = s.allPilots;
+      applyServerState(s);
       // Si estábamos como currentPilot pero el server no nos tiene, re-registrar.
+      const serverPilots = Array.isArray(s.pilots) ? s.pilots : [];
       if (currentPilot && clientId &&
-          !s.pilots.some(p => p.name.toLowerCase() === currentPilot.name.toLowerCase())) {
+          !serverPilots.some(p => p.name.toLowerCase() === currentPilot.name.toLowerCase())) {
         registerPilot(currentPilot).catch(() => {});
       }
     } catch {}
-  }, 10000);
+  }, 3000);
 }
 
 /* ---------- Notificar al servidor cuando se cierra la pestaña ---------- */
