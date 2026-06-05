@@ -241,29 +241,7 @@
       <span id="timer-state" class="font-mono text-[10px] text-slate-gray uppercase"></span>
     </div>
 
-    <div id="admin-panel" hidden class="mt-6 grid gap-3 md:grid-cols-2 lg:grid-cols-3 bg-white border-2 border-slate-gray rounded-xl p-4 shadow-retro-sm">
-      <label class="flex flex-col gap-1">
-        <span class="font-mono text-[10px] text-slate-gray uppercase">Sprint #</span>
-        <input type="text" id="admin-sprint" maxlength="10" placeholder="245" class="border-2 border-slate-gray rounded-lg px-3 py-2 text-sm" />
-      </label>
-      <div class="flex items-end">
-        <button id="admin-sprint-save" class="bg-white border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono hover:bg-surface-low w-full">💾 Guardar sprint</button>
-      </div>
-      <label class="flex flex-col gap-1">
-        <span class="font-mono text-[10px] text-slate-gray uppercase">Duración del tablero</span>
-        <select id="admin-timer-duration" class="border-2 border-slate-gray rounded-lg px-3 py-2 text-sm bg-white">
-          <option value="180">3 minutos</option>
-          <option value="300" selected>5 minutos</option>
-          <option value="600">10 minutos</option>
-        </select>
-      </label>
-      <button id="admin-board-toggle" class="bg-luigi-green text-white border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono shadow-retro-sm">🟢 Activar tablero</button>
-      <button id="admin-timer-pause" disabled class="bg-white border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono hover:bg-surface-low disabled:opacity-50">⏸️ Pausar</button>
-      <button id="admin-timer-reset" class="bg-white border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono hover:bg-surface-low">🔄 Reset</button>
-      <button id="admin-release" class="bg-mario-red text-white border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono shadow-retro-sm md:col-span-2 lg:col-span-1">🚪 Salir admin</button>
-    </div>
-
-    <p id="current-pilot" hidden class="mt-4 inline-block font-mono text-xs bg-white border-2 border-slate-gray rounded-full px-3 py-1 shadow-retro-sm"></p>
+    <!-- Panel admin movido a la columna derecha. -->
   </section>
 
   <div class="flex flex-col lg:flex-row gap-6 lg:gap-8">
@@ -292,7 +270,7 @@
         </div>
 
         <div class="relative" data-carousel="steps">
-          <ol id="steps-carousel" class="steps grid grid-flow-col auto-cols-[100%] sm:auto-cols-[50%] xl:auto-cols-[33.333%] gap-4 md:gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-2 -mx-1 px-1 list-none">
+          <ol id="steps-carousel" class="steps retro-carousel grid grid-flow-col auto-cols-[100%] md:auto-cols-[33.333%] gap-4 md:gap-6 overflow-x-hidden snap-x snap-mandatory scroll-smooth pb-2 -mx-1 px-1 list-none">
             <li class="step snap-start">
               <label class="block bg-white p-5 border-2 border-slate-gray rounded-2xl shadow-retro-sm flex flex-col h-full cursor-pointer hover:-translate-y-0.5 transition-all">
                 <div class="flex justify-between items-start mb-4">
@@ -301,9 +279,8 @@
                 </div>
                 <div class="step-content flex-1">
                   <h3 class="font-display text-base md:text-lg font-bold mb-2">🎬 Da la bienvenida al equipo (5 min)</h3>
-                  <p class="text-sm text-slate-gray">Pon música de Mario Kart, muestra la pista y explica que hoy correremos juntos como un equipo.</p>
+                  <p class="text-sm text-slate-gray">Da la bienvenida, muestra la dinámica y explica que hoy correremos juntos como un equipo.</p>
                 </div>
-                <button type="button" class="btn-mini step-action mt-4 self-start text-xs font-mono bg-toad-blue text-white px-3 py-1.5 rounded-full border-2 border-slate-gray shadow-retro-sm" data-opens="music-modal">🎶 Abrir reproductor</button>
               </label>
             </li>
             <li class="step snap-start">
@@ -456,20 +433,17 @@
       </section>
 
       <!-- Tablero -->
-      <section id="retro" hidden class="space-y-6">
+      <section id="retro" class="space-y-6">
         <div class="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 border-b-4 border-slate-gray pb-4">
           <div>
             <h2 class="font-display font-bold text-2xl md:text-3xl">🏎️ Tablero — Retro Mario Kart</h2>
             <p class="text-sm text-slate-gray">Cada participante puede añadir tarjetas en cada categoría en tiempo real.</p>
           </div>
-          <div id="board-actions" hidden class="flex gap-2">
-            <button id="export-btn" class="admin-only bg-white px-3 py-2 rounded-xl border-2 border-slate-gray shadow-retro-sm font-mono text-xs hover:bg-surface-low" hidden>📊 Exportar</button>
-            <button id="clear-btn" class="admin-only bg-white text-mario-red px-3 py-2 rounded-xl border-2 border-slate-gray shadow-retro-sm font-mono text-xs hover:bg-mario-red/10" hidden>🗑️ Borrar</button>
-          </div>
+          <div id="board-actions" hidden class="flex gap-2"></div>
         </div>
 
         <div class="relative" data-carousel="board">
-          <div id="board" hidden class="grid grid-flow-col auto-cols-[90%] sm:auto-cols-[48%] xl:auto-cols-[33.333%] gap-4 md:gap-6 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-2 -mx-1 px-1">
+          <div id="board" class="retro-carousel grid grid-flow-col auto-cols-[100%] md:auto-cols-[33.333%] gap-4 md:gap-6 overflow-x-hidden snap-x snap-mandatory scroll-smooth pb-2 -mx-1 px-1">
 
             <article class="card-column color-banana-past snap-start flex flex-col min-h-[450px] bg-white rounded-2xl border-2 border-slate-gray border-l-8 border-l-star-gold overflow-hidden shadow-retro-sm">
               <header class="p-4 border-b border-slate-gray/20">
@@ -605,16 +579,47 @@
       </section>
 
       <section class="bg-surface-low border-2 border-slate-gray rounded-2xl p-5 shadow-retro-sm">
-        <div class="flex items-center justify-between mb-3">
-          <div class="flex items-center gap-2">
-            <span class="material-symbols-outlined text-toad-blue">target</span>
-            <h3 class="font-display font-bold text-base">Objetivo</h3>
-          </div>
-          <button class="p-1 hover:bg-slate-gray/10 rounded" data-opens="objective-modal" title="Editar objetivo"><span class="material-symbols-outlined text-sm">edit</span></button>
+        <div class="flex items-center gap-2 mb-3">
+          <span class="material-symbols-outlined text-toad-blue">target</span>
+          <h3 class="font-display font-bold text-base">Objetivo</h3>
         </div>
         <p id="objective-display" class="text-sm italic text-slate-gray px-3 py-2 border-l-2 border-toad-blue min-h-[40px]">
-          Aún no se ha definido un objetivo. Pulsa ✏️ para escribirlo.
+          Aún no se ha definido un objetivo.
         </p>
+      </section>
+
+      <section id="admin-panel" hidden class="bg-white border-2 border-slate-gray rounded-2xl p-5 shadow-retro-sm space-y-4">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <p class="font-mono text-[10px] uppercase text-slate-gray">Panel admin</p>
+            <h3 class="font-display font-bold text-base">👑 Controles de carrera</h3>
+          </div>
+          <span class="font-mono text-[10px] bg-star-gold text-ink-black px-2 py-1 rounded-full border-2 border-slate-gray">Solo admin</span>
+        </div>
+        <label class="flex flex-col gap-1">
+          <span class="font-mono text-[10px] text-slate-gray uppercase">Sprint #</span>
+          <input type="text" id="admin-sprint" maxlength="10" placeholder="245" class="border-2 border-slate-gray rounded-lg px-3 py-2 text-sm" />
+        </label>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="admin-sprint-save" class="bg-white border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono hover:bg-surface-low">💾 Guardar sprint</button>
+          <button type="button" class="bg-white border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono hover:bg-surface-low" data-opens="objective-modal">🎯 Editar objetivo</button>
+          <button id="export-btn" class="admin-only bg-white border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono hover:bg-surface-low" hidden>📊 Exportar</button>
+          <button id="clear-btn" class="admin-only bg-white text-mario-red border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono hover:bg-mario-red/10" hidden>🗑️ Borrar</button>
+        </div>
+        <label class="flex flex-col gap-1">
+          <span class="font-mono text-[10px] text-slate-gray uppercase">Duración del tablero</span>
+          <select id="admin-timer-duration" class="border-2 border-slate-gray rounded-lg px-3 py-2 text-sm bg-white">
+            <option value="180">3 minutos</option>
+            <option value="300" selected>5 minutos</option>
+            <option value="600">10 minutos</option>
+          </select>
+        </label>
+        <div class="grid grid-cols-2 gap-2">
+          <button id="admin-board-toggle" class="bg-luigi-green text-white border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono shadow-retro-sm">🟢 Activar tablero</button>
+          <button id="admin-timer-pause" disabled class="bg-white border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono hover:bg-surface-low disabled:opacity-50">⏸️ Pausar</button>
+          <button id="admin-timer-reset" class="bg-white border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono hover:bg-surface-low">🔄 Reset</button>
+          <button id="admin-release" class="bg-mario-red text-white border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono shadow-retro-sm">🚪 Salir admin</button>
+        </div>
       </section>
 
     </aside>
