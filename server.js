@@ -4,7 +4,8 @@
    - Sirve los estáticos (index.html, styles.css, app.js)
    - REST API para tarjetas, pilotos y pasos
    - SSE (/api/stream) en tiempo real
-   - Estado 100% en memoria (se reinicia con el server)
+   - Estado en memoria; persistencia opcional por archivo si se define
+     MARIO_DATA_FILE (ver docs/pr-03-server-file-persistence.md).
    Run:  node server.js   (o  npm start)
    ========================================================= */
 
@@ -18,11 +19,22 @@ const HOST      = process.env.HOST || '0.0.0.0';
 const ROOT      = __dirname;
 const ADMIN_PIN = String(process.env.MARIO_ADMIN_PIN || 'sitioBanco');
 const ADMIN_SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12h: sobrevive recargas, no reinicios del server
+const DATA_FILE = process.env.MARIO_DATA_FILE || null;
 
 const CATEGORIES = [
   'banana-future','shortcut-future','power-future',
   'shortcut-past','banana-past','power-past'
 ];
+
+/* ---------- Logs estructurados ---------- */
+// Una línea JSON por evento. No incluir PIN, tokens ni contenido sensible.
+function logEvent(event, fields) {
+  try {
+    console.log(JSON.stringify({ event, ts: new Date().toISOString(), ...(fields || {}) }));
+  } catch {
+    console.log(event);
+  }
+}
 
 /* ---------- Estado ---------- */
 function emptyData() {
@@ -135,7 +147,103 @@ function racePublicState() { return computeRace(); }
 
 function broadcastRace() { broadcast('race:update', racePublicState()); }
 
-function saveData() { /* no-op: estado solo en memoria */ }
+/* ---------- Persistencia opcional (MARIO_DATA_FILE) ---------- */
+let saveTimer = null;
+let savePending = false;
+
+function loadData() {
+  if (!DATA_FILE) return;
+  try {
+    if (!fs.existsSync(DATA_FILE)) return;
+    const raw = fs.readFileSync(DATA_FILE, 'utf8');
+    const parsed = JSON.parse(raw);
+    if (!parsed || typeof parsed !== 'object') return;
+    if (parsed.cards && typeof parsed.cards === 'object') {
+      for (const c of CATEGORIES) {
+        if (Array.isArray(parsed.cards[c])) data.cards[c] = parsed.cards[c];
+      }
+    }
+    if (Array.isArray(parsed.steps)) data.steps = parsed.steps.filter(n => Number.isInteger(n) && n >= 0 && n < 50);
+    if (typeof parsed.objective === 'string') data.objective = String(parsed.objective).slice(0, 800);
+    if (Array.isArray(parsed.actions)) data.actions = parsed.actions;
+    if (typeof parsed.sprint === 'string') data.sprint = String(parsed.sprint).slice(0, 16);
+    if (typeof parsed.boardActive === 'boolean') data.boardActive = parsed.boardActive;
+    if (parsed.timer && typeof parsed.timer === 'object') {
+      data.timer = {
+        durationSec: Math.max(10, Math.min(60 * 60, Number(parsed.timer.durationSec) || 300)),
+        startedAt: Number(parsed.timer.startedAt) || 0,
+        elapsedAtPause: Number(parsed.timer.elapsedAtPause) || 0,
+        running: !!parsed.timer.running
+      };
+    }
+    if (parsed.everPilots && typeof parsed.everPilots === 'object') {
+      for (const [k, v] of Object.entries(parsed.everPilots)) {
+        if (v && typeof v === 'object' && v.name) {
+          everPilots.set(String(k), {
+            name: String(v.name).slice(0, 32),
+            character: String(v.character || '🍄').slice(0, 8)
+          });
+        }
+      }
+    }
+    logEvent('state_loaded', { file: DATA_FILE });
+  } catch (err) {
+    logEvent('state_load_failed', { error: err && err.message });
+  }
+}
+
+function writeDataFileSync() {
+  if (!DATA_FILE) return;
+  savePending = false;
+  const snapshot = {
+    cards: data.cards,
+    steps: data.steps,
+    objective: data.objective,
+    actions: data.actions,
+    sprint: data.sprint,
+    boardActive: data.boardActive,
+    timer: data.timer,
+    everPilots: Object.fromEntries(everPilots)
+  };
+  const tmp = DATA_FILE + '.tmp';
+  try {
+    fs.writeFileSync(tmp, JSON.stringify(snapshot));
+    fs.renameSync(tmp, DATA_FILE);
+  } catch (err) {
+    logEvent('state_save_failed', { error: err && err.message });
+  }
+}
+
+// Debounced: muchas mutaciones seguidas → un solo write. Útil en SSE broadcasts.
+function saveData() {
+  if (!DATA_FILE) return;
+  savePending = true;
+  if (saveTimer) return;
+  saveTimer = setTimeout(() => {
+    saveTimer = null;
+    if (savePending) writeDataFileSync();
+  }, 100);
+}
+
+function saveDataSync() {
+  if (!DATA_FILE) return;
+  if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+  if (savePending) writeDataFileSync();
+}
+
+/* ---------- resetState (para tests; también útil tras /api/clear total) ---------- */
+function resetState() {
+  data = emptyData();
+  adminClientId = null;
+  adminSessions.clear();
+  livePilots.clear();
+  everPilots.clear();
+  moods.clear();
+  for (const res of clients.values()) { try { res.end(); } catch {} }
+  clients.clear();
+  if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+  savePending = false;
+}
 
 function getPilotsList() {
   // Participantes registrados durante esta sesión del server. No los quitamos al desconectar
@@ -316,7 +424,12 @@ function requireAdmin(req, body) {
   if (!cid) return false;
   if (cid === adminClientId) return true;
   if (validateAdminSession(cid, token) && (!adminClientId || adminClientId === cid)) {
+    const wasTaken = !!adminClientId;
     adminClientId = cid;
+    if (!wasTaken) {
+      logEvent('admin_restored', { auto: true });
+      broadcastAdmin();
+    }
     return true;
   }
   return false;
@@ -330,6 +443,25 @@ async function handleApi(req, res, url) {
     return send(res, 200, fullState());
   }
 
+  // GET /api/health  (observabilidad — sin secretos)
+  if (req.method === 'GET' && parts.length === 2 && parts[1] === 'health') {
+    const totalCards = CATEGORIES.reduce((n, c) => n + ((data.cards[c] || []).length), 0);
+    return send(res, 200, {
+      ok: true,
+      uptimeSec: Math.round(process.uptime()),
+      serverNow: Date.now(),
+      clientsConnected: clients.size,
+      pilotsRegistered: everPilots.size,
+      livePilots: livePilots.size,
+      adminTaken: !!adminClientId,
+      boardActive: !!data.boardActive,
+      timerRunning: !!data.timer.running,
+      cards: totalCards,
+      actions: data.actions.length,
+      persistence: DATA_FILE ? 'file' : 'memory'
+    });
+  }
+
   // GET /api/stream  (SSE)
   if (req.method === 'GET' && parts.length === 2 && parts[1] === 'stream') {
     const requestedId = normalizeClientId(url.searchParams.get('clientId'));
@@ -338,6 +470,7 @@ async function handleApi(req, res, url) {
     if (previous) {
       try { previous.end(); } catch {}
       clients.delete(clientId);
+      logEvent('sse_replaced', { clientId });
     }
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -349,6 +482,7 @@ async function handleApi(req, res, url) {
     res.write(`event: hello\ndata: ${JSON.stringify({ clientId })}\n\n`);
     res.write(`event: snapshot\ndata: ${JSON.stringify(fullState())}\n\n`);
     clients.set(clientId, res);
+    logEvent('sse_connected', { clientId, clients: clients.size });
 
     const ka = setInterval(() => { try { res.write(': keepalive\n\n'); } catch {} }, 25000);
 
@@ -366,9 +500,11 @@ async function handleApi(req, res, url) {
           if (adminClientId === clientId && !clients.has(clientId)) {
             adminClientId = null;
             broadcastAdmin();
+            logEvent('admin_released', { reason: 'sse_timeout' });
           }
         }, 10000);
       }
+      logEvent('sse_disconnected', { clientId, clients: clients.size });
       if (removed) {
         const stillThere = [...livePilots.values()]
           .some(p => p.name.toLowerCase() === removed.name.toLowerCase());
@@ -384,18 +520,23 @@ async function handleApi(req, res, url) {
     return;
   }
 
-  // POST /api/cards    body: { cat, text, author, character }
+  // POST /api/cards    body: { cat, text }   (autor lo decide el server según clientId)
   if (req.method === 'POST' && parts.length === 2 && parts[1] === 'cards') {
     const body = await readBody(req);
+    if (!data.boardActive) return send(res, 409, { error: 'El tablero no está activo' });
     const cat = String(body.cat || '');
     if (!CATEGORIES.includes(cat)) return send(res, 400, { error: 'Categoría inválida' });
     const text = sanitize(body.text, 200).trim();
     if (!text) return send(res, 400, { error: 'Texto vacío' });
+    // Toma el autor real desde livePilots (no se confía en lo que envía el cliente).
+    const cid = normalizeClientId(body.clientId || req.headers['x-client-id'] || '');
+    const pilot = cid ? livePilots.get(cid) : null;
+    if (!pilot) return send(res, 400, { error: 'Únete antes de escribir tarjetas' });
     const card = {
       id: makeId(),
       text,
-      author: sanitize(body.author, 32),
-      character: sanitize(body.character, 8),
+      author: pilot.name,
+      character: pilot.character || '🍄',
       ts: Date.now()
     };
     data.cards[cat].push(card);
@@ -427,6 +568,7 @@ async function handleApi(req, res, url) {
     saveData();
     broadcast('board:clear', {});
     broadcastRace();
+    logEvent('state_cleared', {});
     return send(res, 200, { ok: true });
   }
 
@@ -442,6 +584,7 @@ async function handleApi(req, res, url) {
     // Limpia mismas conexiones con otro nombre (cambió de piloto en esta misma pestaña)
     livePilots.set(clientId, { name, character, joinedAt: Date.now() });
     everPilots.set(name.toLowerCase(), { name, character });
+    logEvent('pilot_registered', { clientId, name, character });
     broadcast('pilots:update', { pilots: getPilotsList(), allPilots: getAllPilotsList() });
     broadcastRace();
     return send(res, 200, { pilots: getPilotsList(), allPilots: getAllPilotsList() });
@@ -573,6 +716,7 @@ async function handleApi(req, res, url) {
     adminClientId = clientId;
     const adminToken = createAdminSession(clientId);
     broadcastAdmin();
+    logEvent('admin_claimed', { clientId });
     return send(res, 200, { ok: true, isAdmin: true, adminToken });
   }
 
@@ -588,6 +732,7 @@ async function handleApi(req, res, url) {
     }
     adminClientId = clientId;
     broadcastAdmin();
+    logEvent('admin_restored', { clientId });
     return send(res, 200, { ok: true, isAdmin: true });
   }
 
@@ -599,6 +744,7 @@ async function handleApi(req, res, url) {
       adminClientId = null;
       revokeAdminSessions(clientId);
       broadcastAdmin();
+      logEvent('admin_released', { clientId, reason: 'manual' });
     }
     return send(res, 200, { ok: true });
   }
@@ -620,6 +766,7 @@ async function handleApi(req, res, url) {
     data.boardActive = !!body.active;
     saveData();
     broadcastBoard();
+    logEvent('board_updated', { boardActive: data.boardActive });
     return send(res, 200, { boardActive: data.boardActive });
   }
 
@@ -653,6 +800,7 @@ async function handleApi(req, res, url) {
     }
     saveData();
     broadcastTimer();
+    logEvent('timer_updated', { action: action || 'duration_only', running: data.timer.running, durationSec: data.timer.durationSec });
     return send(res, 200, timerPublic());
   }
 
@@ -679,11 +827,25 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(PORT, HOST, () => {
-  const shown = HOST === '0.0.0.0' ? 'localhost' : HOST;
-  console.log(`🏁 Retro Mario Kart corriendo en http://${shown}:${PORT}`);
-  console.log(`   (accesible en la red local en http://<tu-ip>:${PORT})`);
-  console.log(`   Estado en memoria (no persistente)`);
-});
+if (require.main === module) {
+  loadData();
+  server.listen(PORT, HOST, () => {
+    const shown = HOST === '0.0.0.0' ? 'localhost' : HOST;
+    console.log(`🏁 Retro Mario Kart corriendo en http://${shown}:${PORT}`);
+    console.log(`   (accesible en la red local en http://<tu-ip>:${PORT})`);
+    console.log(`   Persistencia: ${DATA_FILE ? `archivo (${DATA_FILE})` : 'memoria (no persistente)'}`);
+    logEvent('server_started', { port: PORT, host: HOST, persistence: DATA_FILE ? 'file' : 'memory' });
+  });
 
-process.on('SIGINT', () => { console.log('\n👋 Cerrando servidor…'); process.exit(0); });
+  process.on('SIGINT', () => {
+    console.log('\n👋 Cerrando servidor…');
+    saveDataSync();
+    process.exit(0);
+  });
+  process.on('SIGTERM', () => {
+    saveDataSync();
+    process.exit(0);
+  });
+}
+
+module.exports = { server, resetState, loadData, saveDataSync };
