@@ -1,0 +1,36 @@
+# Render blueprint para mario-kart-retro.
+#
+# IMPORTANTE: este servicio mantiene el estado en memoria del proceso Node.
+# No escalar a más de una instancia mientras no exista una base de datos
+# compartida o pub/sub: SSE y estado quedarían desincronizados entre réplicas.
+#
+# MARIO_DATA_FILE es opcional. Solo establecerlo si se monta un Render Disk
+# (single-instance) en la ruta indicada, para sobrevivir reinicios. Sin disco
+# persistente, cada redeploy/reinicio reinicia la retrospectiva.
+
+services:
+  - type: web
+    name: mario-kart-retro
+    runtime: node
+    plan: free
+    numInstances: 1
+    autoDeploy: true
+    healthCheckPath: /api/health
+    buildCommand: ""
+    startCommand: node server.js
+    envVars:
+      - key: HOST
+        value: 0.0.0.0
+      - key: NODE_ENV
+        value: production
+      - key: MARIO_ADMIN_PIN
+        sync: false
+      # Descomentar SOLO si se monta un disco persistente y se usa 1 instancia:
+      # - key: MARIO_DATA_FILE
+      #   value: /var/data/retro.json
+
+# Para habilitar persistencia entre reinicios, añadir un Render Disk:
+# disks:
+#   - name: data
+#     mountPath: /var/data
+#     sizeGB: 1
