@@ -946,6 +946,8 @@ function closeAnyModal(id) {
 document.addEventListener('click', e => {
   const opener = e.target.closest('[data-opens]');
   if (opener) {
+    e.preventDefault();
+    e.stopPropagation();
     const id = opener.dataset.opens;
     if (id === 'mood-modal') { openMoodModal(); return; }
     if (id === 'objective-modal') { openObjectiveModal(); return; }
@@ -2264,9 +2266,11 @@ const boardActionsEl = document.getElementById('board-actions');
 
 function syncBoardVisibility() {
   document.body.classList.toggle('board-active', boardActive);
-  if (boardSectionEl) boardSectionEl.hidden = !boardActive;
-  if (boardGridEl)    boardGridEl.hidden    = !boardActive;
-  if (boardActionsEl) boardActionsEl.hidden = !boardActive || !isAdmin;
+  // El tablero debe permanecer visible para que el carrusel y los datos reales se puedan revisar;
+  // el bloqueo solo deshabilita inputs/likes hasta que el admin active la carrera.
+  if (boardSectionEl) boardSectionEl.hidden = false;
+  if (boardGridEl)    boardGridEl.hidden    = false;
+  if (boardActionsEl) boardActionsEl.hidden = true;
 }
 
 const _origApplyBoardActive = applyBoardActive;
@@ -2388,7 +2392,8 @@ refreshAdminUI = function () {
     if (!c || !c.el) return;
     const w = itemWidth(c);
     if (!w) return;
-    c.el.scrollBy({ left: dir * w, behavior: 'smooth' });
+    const page = Math.max(1, visibleCount(c));
+    c.el.scrollBy({ left: dir * w * page, behavior: 'smooth' });
     // Refresh tras la animación
     setTimeout(() => updatePos(name), 320);
   }
@@ -2404,7 +2409,10 @@ refreshAdminUI = function () {
     }
     const idx = currentIndex(c);
     const max = maxIndex(c);
-    if (c.pos) c.pos.textContent = `${Math.min(items.length, idx + 1)} / ${items.length}`;
+    const shown = visibleCount(c);
+    const page = Math.floor(idx / shown) + 1;
+    const totalPages = Math.max(1, Math.ceil(items.length / shown));
+    if (c.pos) c.pos.textContent = `${Math.min(totalPages, page)} / ${totalPages}`;
     c.prevBtns.forEach(b => b.disabled = idx <= 0);
     c.nextBtns.forEach(b => b.disabled = idx >= max);
   }
