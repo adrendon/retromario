@@ -767,8 +767,9 @@ function buildCharacterGrid(selected) {
 }
 
 function openJoinModal() {
-  buildCharacterGrid(currentPilot ? currentPilot.character : null);
-  if (currentPilot) nameInput.value = currentPilot.name;
+  // Una vez registrado el piloto no se permite cambiar nombre ni personaje
+  if (currentPilot) return;
+  buildCharacterGrid(null);
   joinModal.hidden = false;
   setTimeout(() => nameInput.focus(), 50);
 }
@@ -2209,8 +2210,25 @@ function buildAdminCharacterGrid(selected) {
 function openAdminModal() {
   if (!adminModal) return;
   if (adminErrorBox) { adminErrorBox.hidden = true; adminErrorBox.textContent = ''; }
-  buildAdminCharacterGrid(currentPilot ? currentPilot.character : null);
-  if (adminNameInput && currentPilot) adminNameInput.value = currentPilot.name;
+
+  const identityFields = document.getElementById('admin-identity-fields');
+  const pilotInfo      = document.getElementById('admin-pilot-info');
+  const pilotChar      = document.getElementById('admin-pilot-char');
+  const pilotName      = document.getElementById('admin-pilot-name');
+
+  if (currentPilot) {
+    // Ya tiene identidad: mostrar quién es y ocultar campos de nombre/personaje
+    if (identityFields) identityFields.hidden = true;
+    if (pilotInfo) pilotInfo.hidden = false;
+    if (pilotChar) pilotChar.textContent = currentPilot.character || '';
+    if (pilotName) pilotName.textContent = currentPilot.name || '';
+  } else {
+    // Sin piloto aún: mostrar los campos de identidad
+    if (identityFields) identityFields.hidden = false;
+    if (pilotInfo) pilotInfo.hidden = true;
+    buildAdminCharacterGrid(null);
+  }
+
   if (adminPinInput) adminPinInput.value = '';
   adminModal.hidden = false;
   setTimeout(() => adminPinInput && adminPinInput.focus(), 50);
@@ -2352,7 +2370,6 @@ refreshAdminUI = function () {
       btn.textContent = musicOn ? '⏸️' : '▶️';
       btn.setAttribute('aria-pressed', musicOn ? 'true' : 'false');
     }
-    if (statusEl) statusEl.textContent = musicOn ? 'Sonando 🎶' : 'En pausa';
     if (trackEl && typeof getCurrentTrackName === 'function') {
       trackEl.textContent = getCurrentTrackName();
     }

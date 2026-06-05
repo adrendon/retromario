@@ -49,10 +49,18 @@
     <span class="modal-confetti" aria-hidden="true">👑</span>
     <h2 id="admin-title">🔑 Modo admin</h2>
     <p class="modal-lead">Ingresa el PIN para tomar el control de la retro.</p>
+    <!-- Identidad actual (visible cuando ya hay piloto registrado) -->
+    <div id="admin-pilot-info" hidden class="flex items-center gap-3 mb-4 bg-surface-low border-2 border-slate-gray/20 rounded-xl px-4 py-3">
+      <span id="admin-pilot-char" class="text-2xl"></span>
+      <span id="admin-pilot-name" class="font-bold text-sm"></span>
+    </div>
     <form id="admin-form" class="join-form" autocomplete="off">
       <label class="field"><span>PIN del admin</span><input type="password" id="admin-pin" maxlength="32" placeholder="password" required /></label>
-      <label class="field"><span>Tu nombre</span><input type="text" id="admin-name" maxlength="24" placeholder="Ej. Ana, Carlos…" /></label>
-      <fieldset class="character-picker"><legend>Elige tu personaje</legend><div class="character-grid" id="admin-character-grid"></div></fieldset>
+      <!-- Nombre y personaje solo se muestran si aún no hay piloto registrado -->
+      <div id="admin-identity-fields">
+        <label class="field"><span>Tu nombre</span><input type="text" id="admin-name" maxlength="24" placeholder="Ej. Ana, Carlos…" /></label>
+        <fieldset class="character-picker"><legend>Elige tu personaje</legend><div class="character-grid" id="admin-character-grid"></div></fieldset>
+      </div>
       <div id="admin-modal-error" class="admin-modal-error" hidden></div>
       <div class="modal-actions" style="gap:8px; flex-wrap:wrap;">
         <button type="button" class="btn-mini" id="admin-cancel">Cancelar</button>
@@ -104,7 +112,6 @@
       <button type="button" id="music-modal-toggle" class="btn btn-primary btn-music-big">▶️ Reproducir</button>
       <div class="music-meta">
         <span id="music-track-name">Retro Kart Theme · 8-bit</span>
-        <span id="music-status">En pausa</span>
       </div>
       <div id="music-track-list" class="music-track-list"></div>
       <label class="music-volume">Volumen <input type="range" id="music-volume" min="0" max="100" value="40" /></label>
@@ -201,7 +208,6 @@
       <div class="min-w-0">
         <p class="text-[10px] opacity-70 uppercase font-mono leading-none mb-1">Reproduciendo ahora</p>
         <p id="music-track-bar-name" class="text-xs font-bold truncate leading-none uppercase tracking-wider">Retro Kart Theme · 8-bit</p>
-        <p id="music-status-bar" class="text-[10px] opacity-70 uppercase font-mono leading-none mt-1">En pausa</p>
       </div>
     </div>
     <div class="flex-1 max-w-md hidden sm:flex items-center gap-3">

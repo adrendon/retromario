@@ -192,7 +192,9 @@ body:not(.is-admin) .step-check { visibility:hidden; pointer-events:none; }
    ========================================================= */
 .modal-backdrop {
   position:fixed; inset:0;
-  background:rgba(15,23,42,.55);
+  background:rgba(15,23,42,.65);
+  backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
   display:flex; align-items:center; justify-content:center;
   z-index:200; padding:16px;
   animation: fade-in .15s ease;
