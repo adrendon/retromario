@@ -946,6 +946,8 @@ function closeAnyModal(id) {
 document.addEventListener('click', e => {
   const opener = e.target.closest('[data-opens]');
   if (opener) {
+    e.preventDefault();
+    e.stopPropagation();
     const id = opener.dataset.opens;
     if (id === 'mood-modal') { openMoodModal(); return; }
     if (id === 'objective-modal') { openObjectiveModal(); return; }
@@ -1180,7 +1182,7 @@ function openActionsModal() {
   if (!actionsModal) return;
   renderActions();
   actionsModal.hidden = false;
-  setTimeout(() => actionInput && actionInput.focus(), 50);
+  if (isAdmin) setTimeout(() => actionInput && actionInput.focus(), 50);
 }
 
 function renderActions() {
@@ -1194,7 +1196,7 @@ function renderActions() {
   if (!sorted.length) {
     const li = document.createElement('li');
     li.className = 'actions-empty';
-    li.textContent = 'Aún no hay acciones propuestas. ¡Lanza la primera!';
+    li.textContent = 'Aún no hay acciones creadas. El admin agregará hasta 5 para que el equipo vote.';
     actionsList.appendChild(li);
   } else {
     sorted.forEach((a, idx) => {
@@ -1224,10 +1226,10 @@ function renderActions() {
   }
 
   if (actionInput) {
-    const disabled = !currentPilot || actions.length >= 5;
+    const disabled = !isAdmin || actions.length >= 5;
     actionInput.disabled = disabled;
-    actionInput.placeholder = !currentPilot
-      ? '🔒 Únete primero para proponer…'
+    actionInput.placeholder = !isAdmin
+      ? '🔒 Solo el admin crea acciones…'
       : actions.length >= 5
         ? '✋ Ya hay 5 acciones (máximo)'
         : 'Escribe una acción para el próximo sprint…';
@@ -1239,17 +1241,13 @@ function renderActions() {
 if (actionsForm) {
   actionsForm.addEventListener('submit', async e => {
     e.preventDefault();
-    if (!currentPilot) { openJoinModal(); toast('Únete antes de proponer 🏎️', 'warn'); return; }
+    if (!isAdmin) { toast('Solo el admin puede crear acciones', 'warn'); return; }
     const text = (actionInput.value || '').trim();
     if (!text) return;
     if (SERVER_MODE) {
       if (!clientId) await waitForClientId(2000);
       try {
-        const r = await fetch('/api/actions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Client-Id': clientId || '' },
-          body: JSON.stringify({ clientId, text })
-        });
+        const r = await adminFetch('/api/actions', { text });
         if (!r.ok) {
           const err = await r.json().catch(() => ({}));
           toast(err.error || 'No se pudo añadir', 'warn');
@@ -1260,7 +1258,7 @@ if (actionsForm) {
     } else {
       if (actions.length >= 5) { toast('Máximo 5 acciones', 'warn'); return; }
       actions.push({
-        id: cryptoId(), text, author: currentPilot.name, character: currentPilot.character,
+        id: cryptoId(), text, author: (currentPilot && currentPilot.name) || 'Admin', character: (currentPilot && currentPilot.character) || '👑',
         ts: Date.now(), voters: [], voteCount: 0
       });
       writeJSON('mario-kart-retro-actions-v1', actions);
@@ -1304,8 +1302,12 @@ if (actionsList) {
         try {
           await fetch(`/api/actions/${encodeURIComponent(id)}`, {
             method: 'DELETE',
-            headers: { 'Content-Type': 'application/json', 'X-Client-Id': clientId || '' },
-            body: JSON.stringify({ clientId })
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Client-Id': clientId || '',
+              'X-Admin-Token': adminToken || ''
+            },
+            body: JSON.stringify({ clientId, adminToken })
           });
         } catch { toast('No se pudo eliminar', 'warn'); }
       } else {
@@ -1323,11 +1325,7 @@ if (actionsClearBtn) {
     if (!confirm('¿Borrar todas las acciones propuestas?')) return;
     if (SERVER_MODE) {
       try {
-        await fetch('/api/actions/clear', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Client-Id': clientId || '' },
-          body: JSON.stringify({ clientId })
-        });
+        await adminFetch('/api/actions/clear', {});
       } catch { toast('No se pudo borrar', 'warn'); }
     } else {
       actions = [];
@@ -1513,12 +1511,13 @@ if (!SERVER_MODE) {
 /* ---------- MÚSICA (Web Audio, sin archivos) ---------- */
 const MUSIC_KEY = 'mario-kart-retro-music-on-v1';
 const MUSIC_TRACK_KEY = 'mario-kart-retro-music-track-v1';
+const MUSIC_VOLUME_KEY = 'mario-kart-retro-music-volume-v1';
 const musicBtn = document.getElementById('music-toggle-btn');
 let audioCtx = null;
 let musicGain = null;
 let musicTimer = null;
 let musicOn = false;
-let currentTrack = readJSON(MUSIC_TRACK_KEY, 'main');  // id en TRACKS
+let currentTrack = readSession(MUSIC_TRACK_KEY, 'main');  // id en TRACKS
 
 // Pista principal — Retro Kart Theme (8-bit)
 const MELODY = [
@@ -1565,6 +1564,8 @@ const TRACKS = [
     name: 'Retro Kart Theme',
     icon: '🏁',
     bpm: BPM_MAIN,
+    melodyType: 'square',
+    bassType: 'triangle',
     melody: MELODY,
     bass: BASS,
   },
@@ -1573,6 +1574,8 @@ const TRACKS = [
     name: 'Race Countdown',
     icon: '⏱️',
     bpm: BPM_TIMER,
+    melodyType: 'sawtooth',
+    bassType: 'square',
     melody: TIMER_MELODY,
     bass: TIMER_BASS,
   },
@@ -1581,6 +1584,8 @@ const TRACKS = [
     name: 'Rainbow Road',
     icon: '🌈',
     bpm: 180,
+    melodyType: 'sine',
+    bassType: 'triangle',
     melody: [
       [72,1],[74,1],[76,1],[79,1],[81,1],[79,1],[76,1],[74,1],
       [72,1],[76,1],[79,1],[84,1],[83,1],[79,1],[76,1],[null,1],
@@ -1601,6 +1606,8 @@ const TRACKS = [
     name: "Bowser's Castle",
     icon: '🐢',
     bpm: 150,
+    melodyType: 'sawtooth',
+    bassType: 'sawtooth',
     melody: [
       [55,2],[58,2],[60,2],[63,2],
       [62,1],[60,1],[58,2],[55,4],
@@ -1621,6 +1628,8 @@ const TRACKS = [
     name: 'Star Power',
     icon: '⭐',
     bpm: 240,
+    melodyType: 'square',
+    bassType: 'square',
     melody: [
       [76,1],[79,1],[84,1],[88,1],[91,1],[88,1],[84,1],[79,1],
       [76,1],[79,1],[83,1],[88,1],[91,1],[88,1],[83,1],[79,1],
@@ -1640,7 +1649,7 @@ const TRACKS = [
 function trackById(id) { return TRACKS.find(t => t.id === id) || TRACKS[0]; }
 function trackData(id) {
   const t = trackById(id);
-  return { melody: t.melody, bass: t.bass, bpm: t.bpm };
+  return { melody: t.melody, bass: t.bass, bpm: t.bpm, melodyType: t.melodyType || 'square', bassType: t.bassType || 'triangle' };
 }
 function getCurrentTrackName() {
   const t = trackById(currentTrack);
@@ -1650,7 +1659,7 @@ function setTrackByIndex(idx) {
   const n = TRACKS.length;
   const i = ((idx % n) + n) % n;
   setTrack(TRACKS[i].id);
-  writeJSON(MUSIC_TRACK_KEY, TRACKS[i].id);
+  writeSession(MUSIC_TRACK_KEY, TRACKS[i].id);
   renderTrackList();
   if (window.__syncMusicBar) window.__syncMusicBar();
   // si no está sonando, arranca para feedback inmediato al usuario.
@@ -1685,13 +1694,18 @@ function renderTrackList() {
 
 function midiToFreq(m) { return 440 * Math.pow(2, (m - 69) / 12); }
 
+function currentMusicGainValue() {
+  const pct = Math.max(0, Math.min(100, Number(readSession(MUSIC_VOLUME_KEY, '40'))));
+  return 0.2 * (pct / 100);
+}
+
 function ensureAudio() {
   if (audioCtx) return audioCtx;
   const AC = window.AudioContext || window.webkitAudioContext;
   if (!AC) return null;
   audioCtx = new AC();
   musicGain = audioCtx.createGain();
-  musicGain.gain.value = 0.08;
+  musicGain.gain.value = currentMusicGainValue();
   musicGain.connect(audioCtx.destination);
   return audioCtx;
 }
@@ -1732,7 +1746,7 @@ function stopActiveNotes() {
 function scheduleLoop() {
   if (!audioCtx || !musicOn) return;
   activeNotes = []; // este loop empieza con su propia lista de notas
-  const { melody, bass, bpm } = trackData(currentTrack);
+  const { melody, bass, bpm, melodyType, bassType } = trackData(currentTrack);
   const beatMs = 60000 / bpm;
   const now = audioCtx.currentTime + 0.05;
   const melodyBeats = melody.reduce((s, n) => s + n[1], 0);
@@ -1743,13 +1757,13 @@ function scheduleLoop() {
   let t = now;
   melody.forEach(([m, beats]) => {
     const dur = beats * beatMs / 1000 * 0.9;
-    if (m !== null) playTone({ freq: midiToFreq(m), start: t, dur, type: 'square', gain: 1 });
+    if (m !== null) playTone({ freq: midiToFreq(m), start: t, dur, type: melodyType, gain: 1 });
     t += beats * beatMs / 1000;
   });
   let tb = now;
   bass.forEach(([m, beats]) => {
     const dur = beats * beatMs / 1000 * 0.95;
-    if (m !== null) playTone({ freq: midiToFreq(m), start: tb, dur, type: 'triangle', gain: 0.7 });
+    if (m !== null) playTone({ freq: midiToFreq(m), start: tb, dur, type: bassType, gain: 0.7 });
     tb += beats * beatMs / 1000;
   });
 
@@ -1761,7 +1775,7 @@ function startMusic() {
   if (!ctx) { return; }
   if (ctx.state === 'suspended') ctx.resume();
   musicOn = true;
-  writeJSON(MUSIC_KEY, true);
+  writeSession(MUSIC_KEY, true);
   musicBtn.textContent = '⏸️ Pausar';
   musicBtn.setAttribute('aria-pressed', 'true');
   musicBtn.classList.add('is-on');
@@ -1772,7 +1786,7 @@ function startMusic() {
 
 function stopMusic() {
   musicOn = false;
-  writeJSON(MUSIC_KEY, false);
+  writeSession(MUSIC_KEY, false);
   clearTimeout(musicTimer);
   musicTimer = null;
   stopActiveNotes();
@@ -1781,7 +1795,7 @@ function stopMusic() {
     musicGain.gain.setValueAtTime(musicGain.gain.value, audioCtx.currentTime);
     musicGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2);
     setTimeout(() => {
-      if (musicGain) { musicGain.gain.value = 0.08; }
+      if (musicGain) { musicGain.gain.value = currentMusicGainValue(); }
     }, 250);
   }
   musicBtn.textContent = '▶️ Play';
@@ -1795,6 +1809,7 @@ function stopMusic() {
 function setTrack(track) {
   if (currentTrack === track) return;
   currentTrack = track;
+  writeSession(MUSIC_TRACK_KEY, currentTrack);
   if (musicOn) {
     clearTimeout(musicTimer);
     stopActiveNotes(); // corta las notas de la pista anterior antes de empezar la nueva
@@ -1807,6 +1822,7 @@ function setTrack(track) {
 const musicModal       = document.getElementById('music-modal');
 const musicModalToggle = document.getElementById('music-modal-toggle');
 const musicStatus      = document.getElementById('music-status');
+const musicTrackName   = document.getElementById('music-track-name');
 const musicVolume      = document.getElementById('music-volume');
 
 function openMusicModal() {
@@ -1820,6 +1836,7 @@ function syncMusicModal() {
     musicModalToggle.textContent = musicOn ? '⏸️ Pausar' : '▶️ Play';
   }
   if (musicStatus) musicStatus.textContent = musicOn ? 'Sonando 🎶' : 'En pausa';
+  if (musicTrackName) musicTrackName.textContent = getCurrentTrackName();
 }
 if (musicModalToggle) {
   musicModalToggle.addEventListener('click', () => {
@@ -1828,7 +1845,9 @@ if (musicModalToggle) {
 }
 if (musicVolume) {
   musicVolume.addEventListener('input', () => {
-    const v = Math.max(0, Math.min(100, Number(musicVolume.value))) / 100;
+    const pct = Math.max(0, Math.min(100, Number(musicVolume.value)));
+    writeSession(MUSIC_VOLUME_KEY, pct);
+    const v = pct / 100;
     // El volumen pico interno es 0.08 (suave). Mapeamos 0..1 → 0..0.2 para no atronar.
     if (audioCtx && musicGain) {
       musicGain.gain.cancelScheduledValues(audioCtx.currentTime);
@@ -1879,7 +1898,7 @@ window.sfxBoom   = () => sfx([[60,1],[55,1],[48,2]], 'sawtooth', 0.2);  // salid
   connectSSE();
 
   // Estado de música persistido
-  const wantsMusic = readJSON(MUSIC_KEY, false);
+  const wantsMusic = readSession(MUSIC_KEY, 'false') === 'true';
   if (wantsMusic) {
     // Autoplay está bloqueado hasta que haya interacción.
     // Marcamos el botón y esperamos un primer click en cualquier sitio.
@@ -1925,8 +1944,10 @@ function applyBoardActive(active) {
     if (btn)   btn.disabled   = !boardActive;
   });
   if (adminBoardToggle) {
-    // El botón está oculto: ahora el tablero se activa marcando el paso 5.
-    adminBoardToggle.hidden = true;
+    adminBoardToggle.hidden = !isAdmin;
+    adminBoardToggle.textContent = boardActive ? '🔴 Desactivar tablero' : '🟢 Activar tablero';
+    adminBoardToggle.classList.toggle('bg-mario-red', boardActive);
+    adminBoardToggle.classList.toggle('bg-luigi-green', !boardActive);
   }
   updateRaceVisibility();
 }
@@ -1961,6 +1982,12 @@ function refreshAdminUI() {
   if (adminPanelEl) adminPanelEl.hidden = !isAdmin;
   if (adminTagEl)   adminTagEl.hidden   = !isAdmin;
   document.querySelectorAll('.admin-only').forEach(el => { el.hidden = !isAdmin; });
+  if (adminBoardToggle) {
+    adminBoardToggle.hidden = !isAdmin;
+    adminBoardToggle.textContent = boardActive ? '🔴 Desactivar tablero' : '🟢 Activar tablero';
+    adminBoardToggle.classList.toggle('bg-mario-red', boardActive);
+    adminBoardToggle.classList.toggle('bg-luigi-green', !boardActive);
+  }
   if (adminSprintInput && document.activeElement !== adminSprintInput) {
     adminSprintInput.value = currentSprint;
   }
@@ -2034,11 +2061,13 @@ if (adminSprintSave) {
   });
 }
 if (adminBoardToggle) {
-  // Botón ocultado: la activación del tablero se hace al marcar el paso 5.
-  adminBoardToggle.hidden = true;
+  adminBoardToggle.addEventListener('click', async () => {
+    if (!isAdmin || !clientId) return;
+    await handleStep5Change(!boardActive);
+  });
 }
 
-// Activa/desactiva el tablero + cronómetro cuando el admin marca el paso 5.
+// Activa/desactiva el tablero + cronómetro cuando el admin marca el paso 5 o el admin usa el botón manual.
 async function handleStep5Change(active) {
   if (!isAdmin || !clientId) return;
   const want = !!active;
@@ -2264,9 +2293,11 @@ const boardActionsEl = document.getElementById('board-actions');
 
 function syncBoardVisibility() {
   document.body.classList.toggle('board-active', boardActive);
+  // Usuarios y admin ven las tarjetas solo cuando el tablero está activo
+  // (paso 5 marcado o activación manual del admin).
   if (boardSectionEl) boardSectionEl.hidden = !boardActive;
   if (boardGridEl)    boardGridEl.hidden    = !boardActive;
-  if (boardActionsEl) boardActionsEl.hidden = !boardActive || !isAdmin;
+  if (boardActionsEl) boardActionsEl.hidden = true;
 }
 
 const _origApplyBoardActive = applyBoardActive;
@@ -2305,6 +2336,9 @@ refreshAdminUI = function () {
   const volModal = document.getElementById('music-volume');
   const prev = document.getElementById('music-prev-btn');
   const next = document.getElementById('music-next-btn');
+  const savedVolume = String(readSession(MUSIC_VOLUME_KEY, '40'));
+  if (volBar) volBar.value = savedVolume;
+  if (volModal) volModal.value = savedVolume;
 
   // El icono del botón de la barra se mantiene como ▶️/⏸️ (no como label largo).
   function syncBar() {
@@ -2333,6 +2367,7 @@ refreshAdminUI = function () {
   // Volumen sincronizado entre barra y modal.
   if (volBar) {
     volBar.addEventListener('input', () => {
+      writeSession(MUSIC_VOLUME_KEY, volBar.value);
       if (volModal) { volModal.value = volBar.value; volModal.dispatchEvent(new Event('input')); }
     });
   }
@@ -2388,7 +2423,8 @@ refreshAdminUI = function () {
     if (!c || !c.el) return;
     const w = itemWidth(c);
     if (!w) return;
-    c.el.scrollBy({ left: dir * w, behavior: 'smooth' });
+    const page = Math.max(1, visibleCount(c));
+    c.el.scrollBy({ left: dir * w * page, behavior: 'smooth' });
     // Refresh tras la animación
     setTimeout(() => updatePos(name), 320);
   }
@@ -2404,7 +2440,10 @@ refreshAdminUI = function () {
     }
     const idx = currentIndex(c);
     const max = maxIndex(c);
-    if (c.pos) c.pos.textContent = `${Math.min(items.length, idx + 1)} / ${items.length}`;
+    const shown = visibleCount(c);
+    const page = Math.floor(idx / shown) + 1;
+    const totalPages = Math.max(1, Math.ceil(items.length / shown));
+    if (c.pos) c.pos.textContent = `${Math.min(totalPages, page)} / ${totalPages}`;
     c.prevBtns.forEach(b => b.disabled = idx <= 0);
     c.nextBtns.forEach(b => b.disabled = idx >= max);
   }
