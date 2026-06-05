@@ -1182,7 +1182,7 @@ function openActionsModal() {
   if (!actionsModal) return;
   renderActions();
   actionsModal.hidden = false;
-  setTimeout(() => actionInput && actionInput.focus(), 50);
+  if (isAdmin) setTimeout(() => actionInput && actionInput.focus(), 50);
 }
 
 function renderActions() {
@@ -1196,7 +1196,7 @@ function renderActions() {
   if (!sorted.length) {
     const li = document.createElement('li');
     li.className = 'actions-empty';
-    li.textContent = 'Aún no hay acciones propuestas. ¡Lanza la primera!';
+    li.textContent = 'Aún no hay acciones creadas. El admin agregará hasta 5 para que el equipo vote.';
     actionsList.appendChild(li);
   } else {
     sorted.forEach((a, idx) => {
@@ -1226,10 +1226,10 @@ function renderActions() {
   }
 
   if (actionInput) {
-    const disabled = !currentPilot || actions.length >= 5;
+    const disabled = !isAdmin || actions.length >= 5;
     actionInput.disabled = disabled;
-    actionInput.placeholder = !currentPilot
-      ? '🔒 Únete primero para proponer…'
+    actionInput.placeholder = !isAdmin
+      ? '🔒 Solo el admin crea acciones…'
       : actions.length >= 5
         ? '✋ Ya hay 5 acciones (máximo)'
         : 'Escribe una acción para el próximo sprint…';
@@ -1241,17 +1241,13 @@ function renderActions() {
 if (actionsForm) {
   actionsForm.addEventListener('submit', async e => {
     e.preventDefault();
-    if (!currentPilot) { openJoinModal(); toast('Únete antes de proponer 🏎️', 'warn'); return; }
+    if (!isAdmin) { toast('Solo el admin puede crear acciones', 'warn'); return; }
     const text = (actionInput.value || '').trim();
     if (!text) return;
     if (SERVER_MODE) {
       if (!clientId) await waitForClientId(2000);
       try {
-        const r = await fetch('/api/actions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Client-Id': clientId || '' },
-          body: JSON.stringify({ clientId, text })
-        });
+        const r = await adminFetch('/api/actions', { text });
         if (!r.ok) {
           const err = await r.json().catch(() => ({}));
           toast(err.error || 'No se pudo añadir', 'warn');
@@ -1262,7 +1258,7 @@ if (actionsForm) {
     } else {
       if (actions.length >= 5) { toast('Máximo 5 acciones', 'warn'); return; }
       actions.push({
-        id: cryptoId(), text, author: currentPilot.name, character: currentPilot.character,
+        id: cryptoId(), text, author: (currentPilot && currentPilot.name) || 'Admin', character: (currentPilot && currentPilot.character) || '👑',
         ts: Date.now(), voters: [], voteCount: 0
       });
       writeJSON('mario-kart-retro-actions-v1', actions);
@@ -1306,8 +1302,12 @@ if (actionsList) {
         try {
           await fetch(`/api/actions/${encodeURIComponent(id)}`, {
             method: 'DELETE',
-            headers: { 'Content-Type': 'application/json', 'X-Client-Id': clientId || '' },
-            body: JSON.stringify({ clientId })
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Client-Id': clientId || '',
+              'X-Admin-Token': adminToken || ''
+            },
+            body: JSON.stringify({ clientId, adminToken })
           });
         } catch { toast('No se pudo eliminar', 'warn'); }
       } else {
@@ -1325,11 +1325,7 @@ if (actionsClearBtn) {
     if (!confirm('¿Borrar todas las acciones propuestas?')) return;
     if (SERVER_MODE) {
       try {
-        await fetch('/api/actions/clear', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'X-Client-Id': clientId || '' },
-          body: JSON.stringify({ clientId })
-        });
+        await adminFetch('/api/actions/clear', {});
       } catch { toast('No se pudo borrar', 'warn'); }
     } else {
       actions = [];
@@ -1568,6 +1564,8 @@ const TRACKS = [
     name: 'Retro Kart Theme',
     icon: '🏁',
     bpm: BPM_MAIN,
+    melodyType: 'square',
+    bassType: 'triangle',
     melody: MELODY,
     bass: BASS,
   },
@@ -1576,6 +1574,8 @@ const TRACKS = [
     name: 'Race Countdown',
     icon: '⏱️',
     bpm: BPM_TIMER,
+    melodyType: 'sawtooth',
+    bassType: 'square',
     melody: TIMER_MELODY,
     bass: TIMER_BASS,
   },
@@ -1584,6 +1584,8 @@ const TRACKS = [
     name: 'Rainbow Road',
     icon: '🌈',
     bpm: 180,
+    melodyType: 'sine',
+    bassType: 'triangle',
     melody: [
       [72,1],[74,1],[76,1],[79,1],[81,1],[79,1],[76,1],[74,1],
       [72,1],[76,1],[79,1],[84,1],[83,1],[79,1],[76,1],[null,1],
@@ -1604,6 +1606,8 @@ const TRACKS = [
     name: "Bowser's Castle",
     icon: '🐢',
     bpm: 150,
+    melodyType: 'sawtooth',
+    bassType: 'sawtooth',
     melody: [
       [55,2],[58,2],[60,2],[63,2],
       [62,1],[60,1],[58,2],[55,4],
@@ -1624,6 +1628,8 @@ const TRACKS = [
     name: 'Star Power',
     icon: '⭐',
     bpm: 240,
+    melodyType: 'square',
+    bassType: 'square',
     melody: [
       [76,1],[79,1],[84,1],[88,1],[91,1],[88,1],[84,1],[79,1],
       [76,1],[79,1],[83,1],[88,1],[91,1],[88,1],[83,1],[79,1],
@@ -1643,7 +1649,7 @@ const TRACKS = [
 function trackById(id) { return TRACKS.find(t => t.id === id) || TRACKS[0]; }
 function trackData(id) {
   const t = trackById(id);
-  return { melody: t.melody, bass: t.bass, bpm: t.bpm };
+  return { melody: t.melody, bass: t.bass, bpm: t.bpm, melodyType: t.melodyType || 'square', bassType: t.bassType || 'triangle' };
 }
 function getCurrentTrackName() {
   const t = trackById(currentTrack);
@@ -1688,13 +1694,18 @@ function renderTrackList() {
 
 function midiToFreq(m) { return 440 * Math.pow(2, (m - 69) / 12); }
 
+function currentMusicGainValue() {
+  const pct = Math.max(0, Math.min(100, Number(readSession(MUSIC_VOLUME_KEY, '40'))));
+  return 0.2 * (pct / 100);
+}
+
 function ensureAudio() {
   if (audioCtx) return audioCtx;
   const AC = window.AudioContext || window.webkitAudioContext;
   if (!AC) return null;
   audioCtx = new AC();
   musicGain = audioCtx.createGain();
-  musicGain.gain.value = 0.08;
+  musicGain.gain.value = currentMusicGainValue();
   musicGain.connect(audioCtx.destination);
   return audioCtx;
 }
@@ -1735,7 +1746,7 @@ function stopActiveNotes() {
 function scheduleLoop() {
   if (!audioCtx || !musicOn) return;
   activeNotes = []; // este loop empieza con su propia lista de notas
-  const { melody, bass, bpm } = trackData(currentTrack);
+  const { melody, bass, bpm, melodyType, bassType } = trackData(currentTrack);
   const beatMs = 60000 / bpm;
   const now = audioCtx.currentTime + 0.05;
   const melodyBeats = melody.reduce((s, n) => s + n[1], 0);
@@ -1746,13 +1757,13 @@ function scheduleLoop() {
   let t = now;
   melody.forEach(([m, beats]) => {
     const dur = beats * beatMs / 1000 * 0.9;
-    if (m !== null) playTone({ freq: midiToFreq(m), start: t, dur, type: 'square', gain: 1 });
+    if (m !== null) playTone({ freq: midiToFreq(m), start: t, dur, type: melodyType, gain: 1 });
     t += beats * beatMs / 1000;
   });
   let tb = now;
   bass.forEach(([m, beats]) => {
     const dur = beats * beatMs / 1000 * 0.95;
-    if (m !== null) playTone({ freq: midiToFreq(m), start: tb, dur, type: 'triangle', gain: 0.7 });
+    if (m !== null) playTone({ freq: midiToFreq(m), start: tb, dur, type: bassType, gain: 0.7 });
     tb += beats * beatMs / 1000;
   });
 
@@ -1784,7 +1795,7 @@ function stopMusic() {
     musicGain.gain.setValueAtTime(musicGain.gain.value, audioCtx.currentTime);
     musicGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2);
     setTimeout(() => {
-      if (musicGain) { musicGain.gain.value = 0.08; }
+      if (musicGain) { musicGain.gain.value = currentMusicGainValue(); }
     }, 250);
   }
   musicBtn.textContent = '▶️ Play';
@@ -1811,6 +1822,7 @@ function setTrack(track) {
 const musicModal       = document.getElementById('music-modal');
 const musicModalToggle = document.getElementById('music-modal-toggle');
 const musicStatus      = document.getElementById('music-status');
+const musicTrackName   = document.getElementById('music-track-name');
 const musicVolume      = document.getElementById('music-volume');
 
 function openMusicModal() {
@@ -1824,6 +1836,7 @@ function syncMusicModal() {
     musicModalToggle.textContent = musicOn ? '⏸️ Pausar' : '▶️ Play';
   }
   if (musicStatus) musicStatus.textContent = musicOn ? 'Sonando 🎶' : 'En pausa';
+  if (musicTrackName) musicTrackName.textContent = getCurrentTrackName();
 }
 if (musicModalToggle) {
   musicModalToggle.addEventListener('click', () => {

@@ -23,8 +23,7 @@
 /* ---------- Pasos: locks y estado admin-only ---------- */
 .step { position: relative; }
 .step.is-locked .step-content,
-.step.is-locked .step-action,
-.step.is-admin-only .step-action { opacity: .55; }
+.step.is-locked .step-action { opacity: .55; }
 .step.is-locked::after { content:"🔒 Termina el paso anterior";
   position:absolute; top:8px; right:12px;
   font-size:.7rem; background:rgba(0,0,0,.65); color:#fff;
@@ -35,6 +34,9 @@
   font-size:.7rem; background:rgba(0,0,0,.65); color:#fff;
   padding:3px 8px; border-radius:999px; pointer-events:none; z-index:2;
 }
+body:not(.is-admin) .step.is-locked::after,
+body:not(.is-admin) .step.is-admin-only::after { display:none !important; }
+body:not(.is-admin) .step-check { display:none; }
 .step.is-checked label { background:linear-gradient(180deg,#f0fff4,#fff) !important; }
 
 
