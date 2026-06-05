@@ -2274,48 +2274,88 @@ refreshAdminUI = function () {
       el: document.getElementById('steps-carousel'),
       pos: document.getElementById('steps-carousel-pos'),
       itemSelector: ':scope > li',
+      prevBtns: [],
+      nextBtns: [],
     },
     board: {
       el: document.getElementById('board'),
       pos: document.getElementById('board-carousel-pos'),
       itemSelector: ':scope > article',
+      prevBtns: [],
+      nextBtns: [],
     },
   };
 
+  function itemWidth(c) {
+    const items = c.el.querySelectorAll(c.itemSelector);
+    if (!items.length) return 0;
+    // anchura real del primer item + gap (16px por defecto).
+    const styles = getComputedStyle(c.el);
+    const gap = parseFloat(styles.columnGap || styles.gap || '16') || 16;
+    return items[0].getBoundingClientRect().width + gap;
+  }
+  function visibleCount(c) {
+    const w = itemWidth(c);
+    if (!w) return 1;
+    return Math.max(1, Math.round(c.el.clientWidth / w));
+  }
+  function maxIndex(c) {
+    const items = c.el.querySelectorAll(c.itemSelector);
+    return Math.max(0, items.length - visibleCount(c));
+  }
+  function currentIndex(c) {
+    const w = itemWidth(c);
+    if (!w) return 0;
+    return Math.round(c.el.scrollLeft / w);
+  }
   function step(name, dir) {
     const c = carousels[name];
     if (!c || !c.el) return;
-    const items = c.el.querySelectorAll(c.itemSelector);
-    if (!items.length) return;
-    const w = items[0].getBoundingClientRect().width + 16; // approx gap
+    const w = itemWidth(c);
+    if (!w) return;
     c.el.scrollBy({ left: dir * w, behavior: 'smooth' });
+    // Refresh tras la animación
+    setTimeout(() => updatePos(name), 320);
   }
-
   function updatePos(name) {
     const c = carousels[name];
-    if (!c || !c.el || !c.pos) return;
+    if (!c || !c.el) return;
     const items = c.el.querySelectorAll(c.itemSelector);
-    if (!items.length) { c.pos.textContent = '0 / 0'; return; }
-    const w = items[0].getBoundingClientRect().width + 16;
-    const idx = Math.round(c.el.scrollLeft / w);
-    c.pos.textContent = `${Math.min(items.length, idx + 1)} / ${items.length}`;
+    if (!items.length) {
+      if (c.pos) c.pos.textContent = '0 / 0';
+      c.prevBtns.forEach(b => b.disabled = true);
+      c.nextBtns.forEach(b => b.disabled = true);
+      return;
+    }
+    const idx = currentIndex(c);
+    const max = maxIndex(c);
+    if (c.pos) c.pos.textContent = `${Math.min(items.length, idx + 1)} / ${items.length}`;
+    c.prevBtns.forEach(b => b.disabled = idx <= 0);
+    c.nextBtns.forEach(b => b.disabled = idx >= max);
   }
+  function refreshAll() { Object.keys(carousels).forEach(updatePos); }
+  window.__carouselRefresh = refreshAll;
 
+  // Bindings
   document.querySelectorAll('[data-carousel-prev]').forEach(btn => {
-    btn.addEventListener('click', () => step(btn.dataset.carouselPrev, -1));
+    const name = btn.dataset.carouselPrev;
+    if (carousels[name]) carousels[name].prevBtns.push(btn);
+    btn.addEventListener('click', () => step(name, -1));
   });
   document.querySelectorAll('[data-carousel-next]').forEach(btn => {
-    btn.addEventListener('click', () => step(btn.dataset.carouselNext, +1));
+    const name = btn.dataset.carouselNext;
+    if (carousels[name]) carousels[name].nextBtns.push(btn);
+    btn.addEventListener('click', () => step(name, +1));
   });
   Object.keys(carousels).forEach(name => {
     const c = carousels[name];
-    if (c.el) c.el.addEventListener('scroll', () => updatePos(name), { passive: true });
+    if (!c.el) return;
+    c.el.addEventListener('scroll', () => updatePos(name), { passive: true });
+    // Re-medir cuando cambia el contenido (cards añadidas/eliminadas).
+    new MutationObserver(() => updatePos(name)).observe(c.el, { childList: true, subtree: true });
     updatePos(name);
   });
-  // Reposicionar al cambiar tamaño / al activarse el tablero.
-  window.addEventListener('resize', () => {
-    Object.keys(carousels).forEach(updatePos);
-  });
+  window.addEventListener('resize', refreshAll);
 })();
 
 /* ---------- Botón "Empezar carrera" del header (admin) ---------- */
@@ -2348,11 +2388,7 @@ refreshAdminUI = function () {
   const sec = document.getElementById('retro');
   if (!board || !sec) return;
   const obs = new MutationObserver(() => {
-    if (!sec.hidden && !board.hidden) {
-      const pos = document.getElementById('board-carousel-pos');
-      const items = board.querySelectorAll(':scope > article');
-      if (pos) pos.textContent = `1 / ${items.length}`;
-    }
+    if (window.__carouselRefresh) window.__carouselRefresh();
   });
   obs.observe(sec, { attributes: true, attributeFilter: ['hidden'] });
   obs.observe(board, { attributes: true, attributeFilter: ['hidden'] });
