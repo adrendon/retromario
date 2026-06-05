@@ -119,11 +119,40 @@ function renderCategory(cat) {
         <span class="author"></span>
         <span class="when"></span>
       </div>
+      <div class="card-likes">
+        <button type="button" class="like-btn" aria-pressed="false" title="Me gusta">
+          <span class="like-icon" aria-hidden="true">🤍</span>
+          <span class="like-count">0</span>
+        </button>
+        <span class="like-avatars" aria-label="A quién le gusta"></span>
+      </div>
     `;
     li.querySelector('.card-text').textContent = card.text;
     li.querySelector('.char').textContent     = card.character || '🏁';
     li.querySelector('.author').textContent   = card.author || 'Anónimo';
     li.querySelector('.when').textContent     = '· ' + formatWhen(card.ts);
+
+    paintLikes(li, cat, card.id, card.likeCount || 0, card.likedBy || []);
+
+    li.querySelector('.like-btn').addEventListener('click', async () => {
+      if (!SERVER_MODE) { toast('Modo local: los me gusta requieren servidor', 'warn'); return; }
+      if (!currentPilot)  { toast('Únete primero para dar me gusta', 'warn'); return; }
+      if (!boardActive)   { toast('El tablero no está activo', 'warn'); return; }
+      try {
+        const r = await fetch(`/api/cards/${encodeURIComponent(cat)}/${encodeURIComponent(card.id)}/like`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Client-Id': clientId || '' },
+          body: JSON.stringify({ clientId })
+        });
+        if (!r.ok) {
+          const out = await r.json().catch(() => ({}));
+          toast(out.error || 'No se pudo registrar el me gusta', 'warn');
+          return;
+        }
+        const out = await r.json();
+        applyLikeUpdate(cat, card.id, out.likeCount, out.likedBy);
+      } catch { toast('Error al dar me gusta', 'danger'); }
+    });
 
     li.querySelector('.delete').addEventListener('click', async () => {
       li.classList.add('is-removing');
@@ -139,6 +168,46 @@ function renderCategory(cat) {
     });
     list.appendChild(li);
   });
+}
+
+// Pinta el contador + avatars de quién dio like sobre el <li> recibido.
+function paintLikes(li, cat, id, count, likedBy) {
+  const btn = li.querySelector('.like-btn');
+  const icon = li.querySelector('.like-icon');
+  const cnt  = li.querySelector('.like-count');
+  const av   = li.querySelector('.like-avatars');
+  if (!btn || !av) return;
+  const mineGave = (likedBy || []).some(v => currentPilot && v.name && v.name.toLowerCase() === currentPilot.name.toLowerCase());
+  btn.setAttribute('aria-pressed', mineGave ? 'true' : 'false');
+  btn.classList.toggle('is-on', mineGave);
+  if (icon) icon.textContent = mineGave ? '❤️' : '🤍';
+  if (cnt)  cnt.textContent = String(count || 0);
+  av.innerHTML = '';
+  (likedBy || []).slice(0, 5).forEach((v, i) => {
+    const a = document.createElement('span');
+    a.className = 'like-avatar';
+    a.title = `${v.character || ''} ${v.name || ''}`.trim();
+    a.style.background = pilotColorBg(i);
+    a.style.color = pilotColorInk(i);
+    a.textContent = v.character || '👤';
+    av.appendChild(a);
+  });
+  if ((likedBy || []).length > 5) {
+    const more = document.createElement('span');
+    more.className = 'like-avatar like-extra';
+    more.textContent = '+' + ((likedBy || []).length - 5);
+    more.title = likedBy.slice(5).map(v => `${v.character || ''} ${v.name || ''}`.trim()).join('\n');
+    av.appendChild(more);
+  }
+}
+
+// Aplica un like update (desde el cliente local o desde SSE) y refresca la card en pantalla.
+function applyLikeUpdate(cat, id, likeCount, likedBy) {
+  const list = cards[cat] || [];
+  const card = list.find(c => c.id === id);
+  if (card) { card.likeCount = likeCount; card.likedBy = likedBy || []; }
+  const li = document.querySelector(`.card-list[data-cat="${cat}"] li[data-id="${id}"]`);
+  if (li) paintLikes(li, cat, id, likeCount, likedBy || []);
 }
 
 function renderAll() {
@@ -1332,6 +1401,12 @@ function connectSSE() {
     if (!cards[cat]) return;
     cards[cat] = cards[cat].filter(c => c.id !== id);
     renderCategory(cat); updateCounts();
+  });
+  es.addEventListener('card:like', e => {
+    try {
+      const { cat, id, likeCount, likedBy } = JSON.parse(e.data);
+      if (typeof applyLikeUpdate === 'function') applyLikeUpdate(cat, id, likeCount, likedBy);
+    } catch {}
   });
   es.addEventListener('board:clear', () => {
     CATEGORIES.forEach(c => cards[c] = []);

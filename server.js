@@ -386,9 +386,34 @@ function publicActions() {
   });
 }
 
+// Devuelve las tarjetas con `likedBy` (array de {name,character}) en lugar de
+// exponer los clientId del objeto interno `likes`.
+function publicCard(card) {
+  const likesObj = (card && card.likes) || {};
+  return {
+    id: card.id,
+    text: card.text,
+    author: card.author,
+    character: card.character,
+    ts: card.ts,
+    likeCount: Object.keys(likesObj).length,
+    likedBy: Object.values(likesObj).map(v => ({
+      name: v && v.name ? v.name : '',
+      character: v && v.character ? v.character : ''
+    }))
+  };
+}
+function publicCards() {
+  const out = {};
+  for (const cat of CATEGORIES) {
+    out[cat] = (data.cards[cat] || []).map(publicCard);
+  }
+  return out;
+}
+
 function fullState() {
   return {
-    cards: data.cards,
+    cards: publicCards(),
     pilots: getPilotsList(),
     allPilots: getAllPilotsList(),
     steps: data.steps,
@@ -537,13 +562,14 @@ async function handleApi(req, res, url) {
       text,
       author: pilot.name,
       character: pilot.character || '🍄',
-      ts: Date.now()
+      ts: Date.now(),
+      likes: {}
     };
     data.cards[cat].push(card);
     saveData();
-    broadcast('card:add', { cat, card });
+    broadcast('card:add', { cat, card: publicCard(card) });
     broadcastRace();
-    return send(res, 201, card);
+    return send(res, 201, publicCard(card));
   }
 
   // DELETE /api/cards/:cat/:id
@@ -558,6 +584,27 @@ async function handleApi(req, res, url) {
     broadcast('card:remove', { cat, id });
     broadcastRace();
     return send(res, 204);
+  }
+
+  // POST /api/cards/:cat/:id/like   body: { clientId }   (toggle)
+  if (req.method === 'POST' && parts.length === 5 && parts[1] === 'cards' && parts[4] === 'like') {
+    const cat = parts[2];
+    const id  = parts[3];
+    if (!CATEGORIES.includes(cat)) return send(res, 404, { error: 'Categoría' });
+    if (!data.boardActive) return send(res, 409, { error: 'El tablero no está activo' });
+    const body = await readBody(req);
+    const cid = normalizeClientId(body.clientId || req.headers['x-client-id'] || '');
+    const pilot = cid ? livePilots.get(cid) : null;
+    if (!pilot) return send(res, 400, { error: 'Únete antes de dar me gusta' });
+    const card = (data.cards[cat] || []).find(c => c.id === id);
+    if (!card) return send(res, 404, { error: 'No encontrada' });
+    if (!card.likes) card.likes = {};
+    if (card.likes[cid]) delete card.likes[cid];
+    else card.likes[cid] = { name: pilot.name, character: pilot.character || '🍄', ts: Date.now() };
+    saveData();
+    const pub = publicCard(card);
+    broadcast('card:like', { cat, id, likeCount: pub.likeCount, likedBy: pub.likedBy });
+    return send(res, 200, { id, liked: !!card.likes[cid], likeCount: pub.likeCount, likedBy: pub.likedBy });
   }
 
   // POST /api/clear  (admin)

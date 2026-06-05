@@ -231,3 +231,81 @@ test('POST /api/cards usa el autor real del piloto (no confía en body.author)',
   assert.strictEqual(r.body.author, 'Dani');
   assert.strictEqual(r.body.character, '🦖');
 });
+
+
+test('POST /api/cards/:cat/:id/like rechaza sin tablero activo (409)', async () => {
+  const adminCid = 'admin-like-aaaa1111';
+  const pilotCid = 'pilot-like-bbbb2222';
+  await openStreamHello(adminCid);
+  await openStreamHello(pilotCid);
+  await request('POST', '/api/admin/claim', { clientId: adminCid, pin: 'sitioBanco' });
+  await request('POST', '/api/board', { clientId: adminCid, active: true });
+  await request('POST', '/api/pilots', { clientId: pilotCid, name: 'Lía', character: '🍓' });
+  const created = await request('POST', '/api/cards', { clientId: pilotCid, cat: 'banana-past', text: 'a corregir' });
+  assert.strictEqual(created.status, 201);
+  const cardId = created.body.id;
+
+  // Desactiva el tablero y prueba like → debe dar 409
+  await request('POST', '/api/board', { clientId: adminCid, active: false });
+  const r = await request('POST', '/api/cards/banana-past/' + cardId + '/like', { clientId: pilotCid });
+  assert.strictEqual(r.status, 409);
+});
+
+test('POST /api/cards/:cat/:id/like es idempotente toggle y devuelve likedBy', async () => {
+  const adminCid = 'admin-like-cccc3333';
+  const p1 = 'pilot-like-dddd4444';
+  const p2 = 'pilot-like-eeee5555';
+  await openStreamHello(adminCid);
+  await openStreamHello(p1);
+  await openStreamHello(p2);
+  await request('POST', '/api/admin/claim', { clientId: adminCid, pin: 'sitioBanco' });
+  await request('POST', '/api/board', { clientId: adminCid, active: true });
+  await request('POST', '/api/pilots', { clientId: p1, name: 'Ana', character: '🍄' });
+  await request('POST', '/api/pilots', { clientId: p2, name: 'Bob', character: '🐢' });
+
+  const created = await request('POST', '/api/cards', { clientId: p1, cat: 'power-future', text: 'gran demo' });
+  const cid = created.body.id;
+
+  // p1 da like → 1
+  let r = await request('POST', '/api/cards/power-future/' + cid + '/like', { clientId: p1 });
+  assert.strictEqual(r.status, 200);
+  assert.strictEqual(r.body.liked, true);
+  assert.strictEqual(r.body.likeCount, 1);
+  assert.deepStrictEqual(r.body.likedBy, [{ name: 'Ana', character: '🍄' }]);
+
+  // p2 da like → 2
+  r = await request('POST', '/api/cards/power-future/' + cid + '/like', { clientId: p2 });
+  assert.strictEqual(r.body.likeCount, 2);
+
+  // p1 toggle off → 1
+  r = await request('POST', '/api/cards/power-future/' + cid + '/like', { clientId: p1 });
+  assert.strictEqual(r.body.liked, false);
+  assert.strictEqual(r.body.likeCount, 1);
+  assert.deepStrictEqual(r.body.likedBy, [{ name: 'Bob', character: '🐢' }]);
+
+  // state expone likeCount/likedBy y no los clientId crudos
+  const state = await request('GET', '/api/state');
+  const card = state.body.cards['power-future'].find(c => c.id === cid);
+  assert.strictEqual(card.likeCount, 1);
+  assert.strictEqual(card.likedBy.length, 1);
+  assert.strictEqual(card.likes, undefined, 'no debe exponerse el objeto interno de likes');
+});
+
+test('POST /api/cards/:cat/:id/like rechaza si no eres piloto (400)', async () => {
+  const adminCid = 'admin-like-ffff6666';
+  const stranger = 'stranger-7777-8888';
+  await openStreamHello(adminCid);
+  await openStreamHello(stranger);
+  await request('POST', '/api/admin/claim', { clientId: adminCid, pin: 'sitioBanco' });
+  await request('POST', '/api/board', { clientId: adminCid, active: true });
+
+  const pid = 'pilot-like-9999aaaa';
+  await openStreamHello(pid);
+  await request('POST', '/api/pilots', { clientId: pid, name: 'Caro', character: '🍒' });
+  const created = await request('POST', '/api/cards', { clientId: pid, cat: 'shortcut-future', text: 'mejora' });
+  const cid = created.body.id;
+
+  const r = await request('POST', '/api/cards/shortcut-future/' + cid + '/like', { clientId: stranger });
+  assert.strictEqual(r.status, 400);
+});
+

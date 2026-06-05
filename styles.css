@@ -365,3 +365,35 @@ body:not(.is-admin) .step.is-admin-only::after { display:none !important; }
   .modal { padding:18px; }
   .modal h2 { font-size:1.15rem; }
 }
+
+
+/* ---------- Likes en tarjetas ---------- */
+.card-likes {
+  display:flex; align-items:center; gap:8px;
+  margin-top:6px; padding-top:6px;
+  border-top:1px dashed rgba(0,0,0,.08);
+}
+.like-btn {
+  display:inline-flex; align-items:center; gap:4px;
+  background:#fff; border:2px solid var(--ink-black, #333);
+  border-radius:999px; padding:2px 10px;
+  font-family:inherit; font-size:.75rem; font-weight:600;
+  cursor:pointer; transition:transform .12s, background .12s;
+}
+.like-btn:hover { transform:translateY(-1px); }
+.like-btn.is-on { background:#ffe1e6; border-color:#e62424; color:#e62424; }
+.like-btn .like-icon { font-size:.9rem; line-height:1; }
+.like-btn .like-count { font-family:'JetBrains Mono', monospace; font-size:.7rem; }
+.like-avatars { display:inline-flex; align-items:center; }
+.like-avatars .like-avatar {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:22px; height:22px; border-radius:999px;
+  border:2px solid #fff; box-shadow:0 0 0 1px rgba(0,0,0,.15);
+  font-size:.8rem; line-height:1; margin-left:-6px; cursor:default;
+}
+.like-avatars .like-avatar:first-child { margin-left:0; }
+.like-avatars .like-extra {
+  background:#555E6B; color:#fff;
+  font-family:'JetBrains Mono', monospace; font-size:.6rem; font-weight:700;
+}
+
