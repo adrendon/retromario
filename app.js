@@ -1515,12 +1515,13 @@ if (!SERVER_MODE) {
 /* ---------- MÚSICA (Web Audio, sin archivos) ---------- */
 const MUSIC_KEY = 'mario-kart-retro-music-on-v1';
 const MUSIC_TRACK_KEY = 'mario-kart-retro-music-track-v1';
+const MUSIC_VOLUME_KEY = 'mario-kart-retro-music-volume-v1';
 const musicBtn = document.getElementById('music-toggle-btn');
 let audioCtx = null;
 let musicGain = null;
 let musicTimer = null;
 let musicOn = false;
-let currentTrack = readJSON(MUSIC_TRACK_KEY, 'main');  // id en TRACKS
+let currentTrack = readSession(MUSIC_TRACK_KEY, 'main');  // id en TRACKS
 
 // Pista principal — Retro Kart Theme (8-bit)
 const MELODY = [
@@ -1652,7 +1653,7 @@ function setTrackByIndex(idx) {
   const n = TRACKS.length;
   const i = ((idx % n) + n) % n;
   setTrack(TRACKS[i].id);
-  writeJSON(MUSIC_TRACK_KEY, TRACKS[i].id);
+  writeSession(MUSIC_TRACK_KEY, TRACKS[i].id);
   renderTrackList();
   if (window.__syncMusicBar) window.__syncMusicBar();
   // si no está sonando, arranca para feedback inmediato al usuario.
@@ -1763,7 +1764,7 @@ function startMusic() {
   if (!ctx) { return; }
   if (ctx.state === 'suspended') ctx.resume();
   musicOn = true;
-  writeJSON(MUSIC_KEY, true);
+  writeSession(MUSIC_KEY, true);
   musicBtn.textContent = '⏸️ Pausar';
   musicBtn.setAttribute('aria-pressed', 'true');
   musicBtn.classList.add('is-on');
@@ -1774,7 +1775,7 @@ function startMusic() {
 
 function stopMusic() {
   musicOn = false;
-  writeJSON(MUSIC_KEY, false);
+  writeSession(MUSIC_KEY, false);
   clearTimeout(musicTimer);
   musicTimer = null;
   stopActiveNotes();
@@ -1797,6 +1798,7 @@ function stopMusic() {
 function setTrack(track) {
   if (currentTrack === track) return;
   currentTrack = track;
+  writeSession(MUSIC_TRACK_KEY, currentTrack);
   if (musicOn) {
     clearTimeout(musicTimer);
     stopActiveNotes(); // corta las notas de la pista anterior antes de empezar la nueva
@@ -1830,7 +1832,9 @@ if (musicModalToggle) {
 }
 if (musicVolume) {
   musicVolume.addEventListener('input', () => {
-    const v = Math.max(0, Math.min(100, Number(musicVolume.value))) / 100;
+    const pct = Math.max(0, Math.min(100, Number(musicVolume.value)));
+    writeSession(MUSIC_VOLUME_KEY, pct);
+    const v = pct / 100;
     // El volumen pico interno es 0.08 (suave). Mapeamos 0..1 → 0..0.2 para no atronar.
     if (audioCtx && musicGain) {
       musicGain.gain.cancelScheduledValues(audioCtx.currentTime);
@@ -1881,7 +1885,7 @@ window.sfxBoom   = () => sfx([[60,1],[55,1],[48,2]], 'sawtooth', 0.2);  // salid
   connectSSE();
 
   // Estado de música persistido
-  const wantsMusic = readJSON(MUSIC_KEY, false);
+  const wantsMusic = readSession(MUSIC_KEY, 'false') === 'true';
   if (wantsMusic) {
     // Autoplay está bloqueado hasta que haya interacción.
     // Marcamos el botón y esperamos un primer click en cualquier sitio.
@@ -1927,8 +1931,10 @@ function applyBoardActive(active) {
     if (btn)   btn.disabled   = !boardActive;
   });
   if (adminBoardToggle) {
-    // El botón está oculto: ahora el tablero se activa marcando el paso 5.
-    adminBoardToggle.hidden = true;
+    adminBoardToggle.hidden = !isAdmin;
+    adminBoardToggle.textContent = boardActive ? '🔴 Desactivar tablero' : '🟢 Activar tablero';
+    adminBoardToggle.classList.toggle('bg-mario-red', boardActive);
+    adminBoardToggle.classList.toggle('bg-luigi-green', !boardActive);
   }
   updateRaceVisibility();
 }
@@ -1963,6 +1969,12 @@ function refreshAdminUI() {
   if (adminPanelEl) adminPanelEl.hidden = !isAdmin;
   if (adminTagEl)   adminTagEl.hidden   = !isAdmin;
   document.querySelectorAll('.admin-only').forEach(el => { el.hidden = !isAdmin; });
+  if (adminBoardToggle) {
+    adminBoardToggle.hidden = !isAdmin;
+    adminBoardToggle.textContent = boardActive ? '🔴 Desactivar tablero' : '🟢 Activar tablero';
+    adminBoardToggle.classList.toggle('bg-mario-red', boardActive);
+    adminBoardToggle.classList.toggle('bg-luigi-green', !boardActive);
+  }
   if (adminSprintInput && document.activeElement !== adminSprintInput) {
     adminSprintInput.value = currentSprint;
   }
@@ -2036,11 +2048,13 @@ if (adminSprintSave) {
   });
 }
 if (adminBoardToggle) {
-  // Botón ocultado: la activación del tablero se hace al marcar el paso 5.
-  adminBoardToggle.hidden = true;
+  adminBoardToggle.addEventListener('click', async () => {
+    if (!isAdmin || !clientId) return;
+    await handleStep5Change(!boardActive);
+  });
 }
 
-// Activa/desactiva el tablero + cronómetro cuando el admin marca el paso 5.
+// Activa/desactiva el tablero + cronómetro cuando el admin marca el paso 5 o el admin usa el botón manual.
 async function handleStep5Change(active) {
   if (!isAdmin || !clientId) return;
   const want = !!active;
@@ -2266,10 +2280,10 @@ const boardActionsEl = document.getElementById('board-actions');
 
 function syncBoardVisibility() {
   document.body.classList.toggle('board-active', boardActive);
-  // El tablero debe permanecer visible para que el carrusel y los datos reales se puedan revisar;
-  // el bloqueo solo deshabilita inputs/likes hasta que el admin active la carrera.
-  if (boardSectionEl) boardSectionEl.hidden = false;
-  if (boardGridEl)    boardGridEl.hidden    = false;
+  // Usuarios y admin ven las tarjetas solo cuando el tablero está activo
+  // (paso 5 marcado o activación manual del admin).
+  if (boardSectionEl) boardSectionEl.hidden = !boardActive;
+  if (boardGridEl)    boardGridEl.hidden    = !boardActive;
   if (boardActionsEl) boardActionsEl.hidden = true;
 }
 
@@ -2309,6 +2323,9 @@ refreshAdminUI = function () {
   const volModal = document.getElementById('music-volume');
   const prev = document.getElementById('music-prev-btn');
   const next = document.getElementById('music-next-btn');
+  const savedVolume = String(readSession(MUSIC_VOLUME_KEY, '40'));
+  if (volBar) volBar.value = savedVolume;
+  if (volModal) volModal.value = savedVolume;
 
   // El icono del botón de la barra se mantiene como ▶️/⏸️ (no como label largo).
   function syncBar() {
@@ -2337,6 +2354,7 @@ refreshAdminUI = function () {
   // Volumen sincronizado entre barra y modal.
   if (volBar) {
     volBar.addEventListener('input', () => {
+      writeSession(MUSIC_VOLUME_KEY, volBar.value);
       if (volModal) { volModal.value = volBar.value; volModal.dispatchEvent(new Event('input')); }
     });
   }
