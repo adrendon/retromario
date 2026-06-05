@@ -284,8 +284,8 @@ async function addCard(cat, payload) {
   if (SERVER_MODE) {
     const r = await fetch('/api/cards', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ cat, ...payload })
+      headers: { 'Content-Type': 'application/json', 'X-Client-Id': clientId || '' },
+      body: JSON.stringify({ cat, clientId, ...payload })
     });
     if (!r.ok) throw new Error('addCard');
     const card = await r.json();
@@ -1216,10 +1216,39 @@ if (actionsClearBtn) {
 
 /* ---------- SSE: tiempo real ---------- */
 let sseRetry = 0;
+let connState = 'connecting';
+function setConnState(state, text) {
+  connState = state;
+  const pill = document.getElementById('conn-pill');
+  if (!pill) return;
+  pill.dataset.state = state;
+  const labels = {
+    connecting: 'Conectando…',
+    live: 'En vivo',
+    polling: 'Sondeo',
+    reconnecting: 'Reconectando…',
+    offline: 'Sin conexión',
+  };
+  const txt = pill.querySelector('.conn-text');
+  if (txt) txt.textContent = text || labels[state] || state;
+}
+if (SERVER_MODE) {
+  setConnState('connecting');
+} else {
+  // Modo local sin servidor: ocultamos el indicador.
+  document.addEventListener('DOMContentLoaded', () => {
+    const pill = document.getElementById('conn-pill');
+    if (pill) pill.hidden = true;
+  });
+}
 function connectSSE() {
   if (!SERVER_MODE || typeof EventSource === 'undefined') return;
   const streamUrl = `/api/stream?clientId=${encodeURIComponent(clientId || cryptoId())}`;
   const es = new EventSource(streamUrl);
+
+  es.addEventListener('open', () => {
+    setConnState('live');
+  });
 
   es.addEventListener('hello', e => {
     try {
@@ -1227,6 +1256,7 @@ function connectSSE() {
       clientId = cid;
       writeSession(CLIENT_ID_KEY, clientId);
       sseRetry = 0;
+      setConnState('live');
       if (currentPilot) {
         registerPilot(currentPilot).catch(() => {});
       }
@@ -1297,7 +1327,10 @@ function connectSSE() {
   es.onerror = () => {
     if (es.readyState === EventSource.CLOSED) {
       sseRetry++;
+      setConnState('reconnecting');
       setTimeout(connectSSE, Math.min(5000, 500 * sseRetry));
+    } else {
+      setConnState('reconnecting');
     }
   };
 }
@@ -1309,16 +1342,22 @@ if (SERVER_MODE) {
   setInterval(async () => {
     try {
       const r = await fetch('/api/state');
-      if (!r.ok) return;
+      if (!r.ok) {
+        if (connState !== 'live') setConnState('offline');
+        return;
+      }
       const s = await r.json();
       applyServerState(s);
+      if (connState !== 'live') setConnState('polling');
       // Si estábamos como currentPilot pero el server no nos tiene, re-registrar.
       const serverPilots = Array.isArray(s.pilots) ? s.pilots : [];
       if (currentPilot && clientId &&
           !serverPilots.some(p => p.name.toLowerCase() === currentPilot.name.toLowerCase())) {
         registerPilot(currentPilot).catch(() => {});
       }
-    } catch {}
+    } catch {
+      if (connState !== 'live') setConnState('offline');
+    }
   }, 3000);
 }
 
@@ -1956,9 +1995,6 @@ function refreshStepsAdminLock() {
     prevDone = prevDone && c.checked;
   });
 }
-// Engancha refresh cuando cambia el rol admin
-const _origRefreshAdminUI = refreshAdminUI;
-refreshAdminUI = function () { _origRefreshAdminUI(); refreshStepsAdminLock(); };
 // Engancha refresh cuando se aplica la lista de pasos desde el server
 const _origUpdateStepLocks = updateStepLocks;
 updateStepLocks = function () { _origUpdateStepLocks(); refreshStepsAdminLock(); };
@@ -1970,21 +2006,24 @@ refreshStepsAdminLock();
 const boardSectionEl = document.getElementById('retro');
 const boardGridEl    = document.getElementById('board');
 const boardActionsEl = document.getElementById('board-actions');
+
+function syncBoardVisibility() {
+  document.body.classList.toggle('board-active', boardActive);
+  if (boardSectionEl) boardSectionEl.hidden = !boardActive;
+  if (boardGridEl)    boardGridEl.hidden    = !boardActive;
+  if (boardActionsEl) boardActionsEl.hidden = !boardActive || !isAdmin;
+}
+
 const _origApplyBoardActive = applyBoardActive;
 applyBoardActive = function (active) {
   _origApplyBoardActive(active);
-  // Ocultamos toda la sección del tablero hasta que el admin active el paso 5.
-  document.body.classList.toggle('board-active', boardActive);
-  if (boardSectionEl) boardSectionEl.hidden = !boardActive;
-  if (boardGridEl)    boardGridEl.hidden    = !boardActive;
-  if (boardActionsEl) boardActionsEl.hidden = !boardActive || !isAdmin;
+  syncBoardVisibility();
 };
-// También cuando cambia el rol admin
-const _origRefreshAdminUI2 = refreshAdminUI;
+
+// Único wrapper de refreshAdminUI: actualiza candados de pasos + visibilidad del tablero.
+const _origRefreshAdminUI = refreshAdminUI;
 refreshAdminUI = function () {
-  _origRefreshAdminUI2();
-  document.body.classList.toggle('board-active', boardActive);
-  if (boardSectionEl) boardSectionEl.hidden = !boardActive;
-  if (boardGridEl)    boardGridEl.hidden    = !boardActive;
-  if (boardActionsEl) boardActionsEl.hidden = !boardActive || !isAdmin;
+  _origRefreshAdminUI();
+  refreshStepsAdminLock();
+  syncBoardVisibility();
 };
