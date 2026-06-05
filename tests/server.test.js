@@ -263,25 +263,30 @@ test('POST /api/cards/:cat/:id/like es idempotente toggle y devuelve likedBy', a
   await request('POST', '/api/pilots', { clientId: p1, name: 'Ana', character: '🍄' });
   await request('POST', '/api/pilots', { clientId: p2, name: 'Bob', character: '🐢' });
 
+  // p1 (Ana) crea la tarjeta
   const created = await request('POST', '/api/cards', { clientId: p1, cat: 'power-future', text: 'gran demo' });
   const cid = created.body.id;
 
-  // p1 da like → 1
+  // p1 (autora) intenta darse like → debe rechazar 409
   let r = await request('POST', '/api/cards/power-future/' + cid + '/like', { clientId: p1 });
+  assert.strictEqual(r.status, 409, 'el autor no puede darse like a su propia tarjeta');
+
+  // p2 da like → 1
+  r = await request('POST', '/api/cards/power-future/' + cid + '/like', { clientId: p2 });
   assert.strictEqual(r.status, 200);
   assert.strictEqual(r.body.liked, true);
   assert.strictEqual(r.body.likeCount, 1);
-  assert.deepStrictEqual(r.body.likedBy, [{ name: 'Ana', character: '🍄' }]);
-
-  // p2 da like → 2
-  r = await request('POST', '/api/cards/power-future/' + cid + '/like', { clientId: p2 });
-  assert.strictEqual(r.body.likeCount, 2);
-
-  // p1 toggle off → 1
-  r = await request('POST', '/api/cards/power-future/' + cid + '/like', { clientId: p1 });
-  assert.strictEqual(r.body.liked, false);
-  assert.strictEqual(r.body.likeCount, 1);
   assert.deepStrictEqual(r.body.likedBy, [{ name: 'Bob', character: '🐢' }]);
+
+  // p2 toggle off → 0
+  r = await request('POST', '/api/cards/power-future/' + cid + '/like', { clientId: p2 });
+  assert.strictEqual(r.body.liked, false);
+  assert.strictEqual(r.body.likeCount, 0);
+  assert.deepStrictEqual(r.body.likedBy, []);
+
+  // p2 like de nuevo → 1
+  r = await request('POST', '/api/cards/power-future/' + cid + '/like', { clientId: p2 });
+  assert.strictEqual(r.body.likeCount, 1);
 
   // state expone likeCount/likedBy y no los clientId crudos
   const state = await request('GET', '/api/state');

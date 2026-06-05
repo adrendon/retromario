@@ -36,7 +36,8 @@
 }
 body:not(.is-admin) .step.is-locked::after,
 body:not(.is-admin) .step.is-admin-only::after { display:none !important; }
-body:not(.is-admin) .step-check { display:none; }
+/* Usuarios ven los pasos pero no pueden marcarlos — solo ocultamos el checkbox */
+body:not(.is-admin) .step-check { visibility:hidden; pointer-events:none; }
 .step.is-checked label { background:linear-gradient(180deg,#f0fff4,#fff) !important; }
 
 

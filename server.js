@@ -598,6 +598,10 @@ async function handleApi(req, res, url) {
     if (!pilot) return send(res, 400, { error: 'Únete antes de dar me gusta' });
     const card = (data.cards[cat] || []).find(c => c.id === id);
     if (!card) return send(res, 404, { error: 'No encontrada' });
+    // El autor no puede darse like a sí mismo
+    if (card.author && card.author.toLowerCase() === pilot.name.toLowerCase()) {
+      return send(res, 409, { error: 'No puedes darle me gusta a tu propia tarjeta' });
+    }
     if (!card.likes) card.likes = {};
     if (card.likes[cid]) delete card.likes[cid];
     else card.likes[cid] = { name: pilot.name, character: pilot.character || '🍄', ts: Date.now() };

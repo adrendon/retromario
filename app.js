@@ -134,10 +134,15 @@ function renderCategory(cat) {
 
     paintLikes(li, cat, card.id, card.likeCount || 0, card.likedBy || []);
 
-    li.querySelector('.like-btn').addEventListener('click', async () => {
+    li.querySelector('.like-btn').addEventListener('click', async e => {
+      e.stopPropagation();
       if (!SERVER_MODE) { toast('Modo local: los me gusta requieren servidor', 'warn'); return; }
       if (!currentPilot)  { toast('Únete primero para dar me gusta', 'warn'); return; }
       if (!boardActive)   { toast('El tablero no está activo', 'warn'); return; }
+      // El autor de la tarjeta no puede darse like a sí mismo
+      if (currentPilot.name.toLowerCase() === (card.author || '').toLowerCase()) {
+        toast('No puedes darle me gusta a tu propia tarjeta 😅', 'warn'); return;
+      }
       try {
         const r = await fetch(`/api/cards/${encodeURIComponent(cat)}/${encodeURIComponent(card.id)}/like`, {
           method: 'POST',
@@ -154,7 +159,8 @@ function renderCategory(cat) {
       } catch { toast('Error al dar me gusta', 'danger'); }
     });
 
-    li.querySelector('.delete').addEventListener('click', async () => {
+    li.querySelector('.delete').addEventListener('click', async e => {
+      e.stopPropagation();
       li.classList.add('is-removing');
       // Actualiza local YA + avisa al servidor
       cards[cat] = cards[cat].filter(c => c.id !== card.id);
