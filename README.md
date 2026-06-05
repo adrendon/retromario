@@ -27,3 +27,8 @@ o [http://localhost:3000/admin](http://localhost:3000/admin) para entrar como fa
 - Eligen personaje y nombre.
 - Ven los pasos y, cuando el admin activa el paso 5, el tablero de tarjetas con cronómetro.
 - Pueden compartir su ánimo (paso 3) y votar acciones (paso 11).
+
+## Plan de trabajo
+
+El plan de estabilización está documentado en [`docs/roadmap.md`](docs/roadmap.md). La estrategia acordada es avanzar en PRs pequeños y **sin agregar base de datos**: el servidor sigue siendo la fuente de verdad y cualquier persistencia futura será opcional por archivo del servidor.
+
