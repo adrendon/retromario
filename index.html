@@ -232,11 +232,11 @@
       <div>
         <h1 class="font-display text-3xl md:text-5xl font-extrabold mb-3 tracking-tight">🏁 Retro Mario Kart 🚗</h1>
         <p class="text-base md:text-lg max-w-2xl text-slate-gray">
-          ¿No estás contento con la velocidad en el equipo? Prepárate para una retrospectiva tan imprevisible como una partida de Mario Kart. Esta vez será tanto una <strong>"futurespectiva"</strong> como una retrospectiva.
+          ¿No estás contento con la velocidad en el equipo? Prepárate para una retrospectiva tan imprevisible como una partida de Mario Kart.
         </p>
       </div>
       <div class="flex flex-wrap gap-3 shrink-0">
-        <a href="#como-hacerlo" class="bg-luigi-green text-white px-6 py-3 rounded-xl border-2 border-slate-gray shadow-retro font-mono text-sm hover:-translate-y-1 transition-all">🚦 ¡Empezar carrera!</a>
+        <a href="#participant-dashboard" class="bg-luigi-green text-white px-6 py-3 rounded-xl border-2 border-slate-gray shadow-retro font-mono text-sm hover:-translate-y-1 transition-all">🎮 Mi estado</a>
         <a href="#retro" class="bg-white text-ink-black px-6 py-3 rounded-xl border-2 border-slate-gray shadow-retro font-mono text-sm hover:bg-surface-low transition-all">📝 Ir a la retro</a>
       </div>
     </div>
@@ -251,10 +251,36 @@
     <!-- Panel admin movido a la columna derecha. -->
   </section>
 
-  <div class="flex flex-col lg:flex-row gap-6 lg:gap-8">
+  <div id="main-layout" class="flex flex-col lg:flex-row gap-6 lg:gap-8">
 
     <!-- COLUMNA IZQ -->
     <div class="lg:w-3/4 space-y-12 md:space-y-20 min-w-0">
+
+      <!-- Panel para participantes -->
+      <section id="participant-dashboard" class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+        <article class="bg-white border-2 border-slate-gray rounded-2xl p-5 shadow-retro-sm">
+          <div class="flex items-center justify-between gap-3 mb-3">
+            <div>
+              <p class="font-mono text-[10px] uppercase text-slate-gray">Estado de ánimo</p>
+              <h2 class="font-display font-bold text-xl">🎮 ¿Cómo llegas hoy?</h2>
+            </div>
+            <button type="button" class="btn-mini text-xs font-mono bg-luigi-green text-white px-3 py-1.5 rounded-full border-2 border-slate-gray shadow-retro-sm" data-opens="mood-modal">Elegir</button>
+          </div>
+          <div id="my-mood-card" class="participant-empty text-sm text-slate-gray">Elige tu estado para aparecer en el muro del equipo.</div>
+          <div class="moods-wall mt-4" id="moods-wall-inline" aria-live="polite"></div>
+        </article>
+
+        <article id="actions-dashboard" class="bg-white border-2 border-slate-gray rounded-2xl p-5 shadow-retro-sm">
+          <div class="flex items-center justify-between gap-3 mb-3">
+            <div>
+              <p class="font-mono text-[10px] uppercase text-slate-gray">Votaciones</p>
+              <h2 class="font-display font-bold text-xl">🏆 Acciones propuestas</h2>
+            </div>
+            <button type="button" class="btn-mini text-xs font-mono bg-star-gold text-ink-black px-3 py-1.5 rounded-full border-2 border-slate-gray shadow-retro-sm" data-opens="actions-modal">Ver detalle</button>
+          </div>
+          <ul class="actions-list" id="actions-board-list" aria-live="polite"></ul>
+        </article>
+      </section>
 
       <!-- Cómo hacerlo -->
       <section id="como-hacerlo">
