@@ -274,7 +274,10 @@ function makePilotAvatar(p, idx, opts) {
   }
   a.style.background = pilotColorBg(idx);
   a.style.color = pilotColorInk(idx);
-  a.title = `${p.character} ${p.name}`;
+  const pilotLabel = `${p.character || ''} ${p.name || 'Piloto'}`.trim();
+  a.title = pilotLabel;
+  a.setAttribute('aria-label', pilotLabel);
+  a.dataset.pilotName = pilotLabel;
   // mostramos el emoji + iniciales pequeñas
   a.innerHTML = `<span aria-hidden="true" style="font-size:.95rem;line-height:1;">${p.character || ''}</span>`;
   if (opts && opts.compact) return a;
@@ -348,7 +351,9 @@ function normalizeCards(raw) {
         text: String(item.text || ''),
         author: String(item.author || ''),
         character: String(item.character || ''),
-        ts: item.ts || Date.now()
+        ts: item.ts || Date.now(),
+        likeCount: Number(item.likeCount || 0),
+        likedBy: Array.isArray(item.likedBy) ? item.likedBy : []
       };
     });
   });
@@ -673,13 +678,15 @@ function updateProgress() {
   const total = checks.length;
   const done  = [...checks].filter(c => c.checked).length;
   const pct   = total === 0 ? 0 : Math.round((done / total) * 100);
-  progressText.textContent = `${done} / ${total} pasos completados`;
-  progressFill.style.width = pct + '%';
-  progressKart.style.left  = pct + '%';
+  if (progressText) progressText.textContent = `${done} / ${total} pasos completados`;
+  if (progressFill) progressFill.style.width = pct + '%';
+  if (progressKart) progressKart.style.left  = pct + '%';
   if (pct > lastPct) {
-    progressKart.classList.remove('is-boost');
-    void progressKart.offsetWidth;
-    progressKart.classList.add('is-boost');
+    if (progressKart) {
+      progressKart.classList.remove('is-boost');
+      void progressKart.offsetWidth;
+      progressKart.classList.add('is-boost');
+    }
   }
   if (pct === 100 && lastPct < 100) {
     toast('🏆 ¡Vuelta de honor! Completaron todos los pasos.', 'success');
@@ -713,6 +720,14 @@ function getCheckedIndices() {
   const out = []; checks.forEach((c, i) => { if (c.checked) out.push(i); }); return out;
 }
 
+function advanceStepsCarouselOnMobile(index) {
+  const carousel = document.getElementById('steps-carousel');
+  if (!carousel || !window.matchMedia('(max-width: 767px)').matches) return;
+  const next = carousel.children[index + 1];
+  if (!next) return;
+  next.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+}
+
 checks.forEach((c, i) => {
   c.addEventListener('change', async () => {
     if (c.checked) {
@@ -731,6 +746,7 @@ checks.forEach((c, i) => {
     updateProgress();
     updateStepLocks();
     try { await saveSteps(getCheckedIndices()); } catch {}
+    if (c.checked) advanceStepsCarouselOnMobile(i);
     // Paso 5 (índice 4) → activa/desactiva el tablero y el cronómetro.
     if (typeof handleStep5Change === 'function' && (i === 4 || i > 4)) {
       try { await handleStep5Change(checks[4] && checks[4].checked); } catch {}
@@ -885,9 +901,13 @@ function renderRace() {
     const isMe = currentPilot && s.name.toLowerCase() === currentPilot.name.toLowerCase();
     if (isMe) kart.classList.add('is-me');
 
+    const kartLabel = `${s.character || ''} ${s.name || 'Piloto'}`.trim();
+    kart.title = kartLabel;
+    kart.setAttribute('aria-label', kartLabel);
+    kart.dataset.pilotName = kartLabel;
     kart.innerHTML = `
       <span class="emoji">${s.character}</span>
-      <span>${escapeText(s.name)}</span>
+      <span class="race-kart-name">${escapeText(s.name)}</span>
     `;
     lane.appendChild(kart);
     raceLanes.appendChild(lane);
@@ -1009,7 +1029,7 @@ function renderObjective() {
       display.textContent = txt;
       display.style.fontStyle = 'normal';
     } else {
-      display.textContent = 'Aún no se ha definido un objetivo. Pulsa ✏️ para escribirlo.';
+      display.textContent = 'Aún no se ha definido un objetivo.';
       display.style.fontStyle = 'italic';
     }
   }
@@ -1068,6 +1088,8 @@ const moodForm      = document.getElementById('mood-form');
 const moodClearBtn  = document.getElementById('mood-clear-btn');
 const moodCancelBtn = document.getElementById('mood-cancel-btn');
 const moodsWall     = document.getElementById('moods-wall');
+const moodsWallInline = document.getElementById('moods-wall-inline');
+const myMoodCard    = document.getElementById('my-mood-card');
 
 function myMood() {
   if (!currentPilot) return null;
@@ -1153,27 +1175,41 @@ if (moodClearBtn) {
 }
 
 function renderMoods() {
-  if (!moodsWall) return;
-  moodsWall.innerHTML = '';
+  const targets = [moodsWall, moodsWallInline].filter(Boolean);
+  targets.forEach(t => { t.innerHTML = ''; });
+
+  const mine = myMood();
+  if (myMoodCard) {
+    myMoodCard.className = mine ? 'my-mood-card is-filled' : 'participant-empty text-sm text-slate-gray';
+    myMoodCard.innerHTML = mine
+      ? `<span class="mood-emoji">${mine.emoji}</span><span><strong>${escapeText(mine.label || 'Estado elegido')}</strong><br><small>${(mine.character || '')} ${escapeText(mine.name || '')}</small></span>`
+      : 'Elige tu estado para aparecer en el muro del equipo.';
+  }
+
+  if (!targets.length) return;
   if (!moods.length) {
-    const empty = document.createElement('span');
-    empty.className = 'step-hint';
-    empty.textContent = 'Aún nadie ha compartido su ánimo';
-    moodsWall.appendChild(empty);
+    targets.forEach(t => {
+      const empty = document.createElement('span');
+      empty.className = 'step-hint';
+      empty.textContent = 'Aún nadie ha compartido su ánimo';
+      t.appendChild(empty);
+    });
     return;
   }
   moods.forEach(m => {
-    const span = document.createElement('span');
-    span.className = 'mood-bubble';
-    if (currentPilot && m.name && m.name.toLowerCase() === currentPilot.name.toLowerCase()) {
-      span.classList.add('is-me');
-    }
-    span.innerHTML = `
-      <span class="mood-emoji">${m.emoji}</span>
-      <span>${(m.character || '')} ${escapeText(m.name || '')}</span>
-      <span class="mood-label">· ${escapeText(m.label || '')}</span>
-    `;
-    moodsWall.appendChild(span);
+    targets.forEach(t => {
+      const span = document.createElement('span');
+      span.className = 'mood-bubble';
+      if (currentPilot && m.name && m.name.toLowerCase() === currentPilot.name.toLowerCase()) {
+        span.classList.add('is-me');
+      }
+      span.innerHTML = `
+        <span class="mood-emoji">${m.emoji}</span>
+        <span>${(m.character || '')} ${escapeText(m.name || '')}</span>
+        <span class="mood-label">· ${escapeText(m.label || '')}</span>
+      `;
+      t.appendChild(span);
+    });
   });
 }
 
@@ -1182,6 +1218,7 @@ const actionsModal    = document.getElementById('actions-modal');
 const actionsForm     = document.getElementById('actions-form');
 const actionInput     = document.getElementById('action-input');
 const actionsList     = document.getElementById('actions-list');
+const actionsBoardList = document.getElementById('actions-board-list');
 const actionsCount    = document.getElementById('actions-count');
 const actionsClearBtn = document.getElementById('actions-clear');
 
@@ -1232,6 +1269,11 @@ function renderActions() {
     });
   }
 
+  if (actionsBoardList) {
+    actionsBoardList.innerHTML = actionsList.innerHTML;
+    actionsBoardList.classList.toggle('has-actions', actions.length > 0);
+  }
+
   if (actionInput) {
     const disabled = !isAdmin || actions.length >= 5;
     actionInput.disabled = disabled;
@@ -1275,8 +1317,7 @@ if (actionsForm) {
   });
 }
 
-if (actionsList) {
-  actionsList.addEventListener('click', async e => {
+async function handleActionVoteClick(e) {
     const voteBtn = e.target.closest('.action-vote-btn');
     const rmBtn   = e.target.closest('.action-remove');
     if (voteBtn) {
@@ -1323,8 +1364,9 @@ if (actionsList) {
         renderActions();
       }
     }
-  });
 }
+if (actionsList) actionsList.addEventListener('click', handleActionVoteClick);
+if (actionsBoardList) actionsBoardList.addEventListener('click', handleActionVoteClick);
 
 if (actionsClearBtn) {
   actionsClearBtn.addEventListener('click', async () => {
@@ -1654,9 +1696,24 @@ const TRACKS = [
   },
 ];
 function trackById(id) { return TRACKS.find(t => t.id === id) || TRACKS[0]; }
+function sequenceBeats(seq) { return seq.reduce((sum, note) => sum + (Number(note[1]) || 0), 0); }
+function extendSequence(seq, minBeats) {
+  const total = sequenceBeats(seq);
+  if (!total || total >= minBeats) return seq;
+  const repeats = Math.ceil(minBeats / total);
+  return Array.from({ length: repeats }, () => seq).flat();
+}
 function trackData(id) {
   const t = trackById(id);
-  return { melody: t.melody, bass: t.bass, bpm: t.bpm, melodyType: t.melodyType || 'square', bassType: t.bassType || 'triangle' };
+  // Cada canción debe sentirse como una pista completa, no como un jingle corto.
+  // Repetimos frases hasta rondar al menos 96 beats antes de volver al inicio.
+  return {
+    melody: extendSequence(t.melody, 96),
+    bass: extendSequence(t.bass, 96),
+    bpm: t.bpm,
+    melodyType: t.melodyType || 'square',
+    bassType: t.bassType || 'triangle'
+  };
 }
 function getCurrentTrackName() {
   const t = trackById(currentTrack);
