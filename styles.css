@@ -271,6 +271,17 @@ body:not(.is-admin) .step-check { visibility:hidden; pointer-events:none; }
   padding:9px 12px; font-size:.95rem; width:100%;
   font-family:inherit;
 }
+.pin-input-wrap { position:relative; display:flex; align-items:center; }
+.pin-input-wrap input { padding-right:44px !important; }
+.pin-visibility-toggle {
+  position:absolute; right:6px; top:50%; transform:translateY(-50%);
+  width:34px; height:34px; border:0; border-radius:8px;
+  display:inline-flex; align-items:center; justify-content:center;
+  background:transparent; color:#475569; cursor:pointer;
+}
+.pin-visibility-toggle:hover,
+.pin-visibility-toggle:focus-visible { background:#e2e8f0; color:#1d2939; outline:none; }
+.pin-visibility-toggle .material-symbols-outlined { font-size:21px; }
 .character-picker { border:0; padding:0; margin:8px 0 4px; }
 .character-picker legend {
   font-size:.75rem; font-weight:700; color:#475569;

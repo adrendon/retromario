@@ -10,6 +10,8 @@ const PILOT_KEY   = 'mario-kart-retro-current-pilot-v1';
 const PILOTS_KEY  = 'mario-kart-retro-pilots-v1';
 const CLIENT_ID_KEY = 'mario-kart-retro-client-id-v1';
 const ADMIN_SESSION_KEY = 'mario-kart-retro-admin-token-v1';
+const ADMIN_PERSIST_KEY = 'mario-kart-retro-admin-token-persistent-v1';
+const ADMIN_CLIENT_ID_KEY = 'mario-kart-retro-admin-client-id-v1';
 
 const CATEGORIES = [
   'banana-future','shortcut-future','power-future',
@@ -68,6 +70,15 @@ function readSession(key, fallback) {
 function writeSession(key, value) {
   try { sessionStorage.setItem(key, String(value)); } catch {}
 }
+function readLocalString(key, fallback) {
+  try {
+    const v = localStorage.getItem(key);
+    return v === null || v === undefined ? fallback : v;
+  } catch { return fallback; }
+}
+function writeLocalString(key, value) {
+  try { localStorage.setItem(key, String(value)); } catch {}
+}
 
 function cryptoId() {
   if (window.crypto && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
@@ -101,9 +112,9 @@ const MOODS = [
 
 let currentPilot = readJSON(PILOT_KEY, null); // identidad local del usuario
 if (!currentPilot) document.body.classList.add('no-pilot');
-let clientId = readSession(CLIENT_ID_KEY, null) || cryptoId();
+let clientId = readSession(CLIENT_ID_KEY, null) || (ADMIN_ROUTE ? readLocalString(ADMIN_CLIENT_ID_KEY, null) : null) || cryptoId();
 writeSession(CLIENT_ID_KEY, clientId);       // estable por pestaña para sobrevivir reconexiones SSE
-let adminToken = readSession(ADMIN_SESSION_KEY, null);
+let adminToken = readSession(ADMIN_SESSION_KEY, null) || (ADMIN_ROUTE ? readLocalString(ADMIN_PERSIST_KEY, null) : null);
 
 /* ---------- Render: tarjetas ---------- */
 function renderCategory(cat) {
@@ -2124,8 +2135,15 @@ function applyAdminTaken(taken) {
 
 function setAdminToken(token) {
   adminToken = token || null;
-  if (adminToken) writeSession(ADMIN_SESSION_KEY, adminToken);
-  else { try { sessionStorage.removeItem(ADMIN_SESSION_KEY); } catch {} }
+  if (adminToken) {
+    writeSession(ADMIN_SESSION_KEY, adminToken);
+    writeLocalString(ADMIN_PERSIST_KEY, adminToken);
+    if (clientId) writeLocalString(ADMIN_CLIENT_ID_KEY, clientId);
+  } else {
+    try { sessionStorage.removeItem(ADMIN_SESSION_KEY); } catch {}
+    try { localStorage.removeItem(ADMIN_PERSIST_KEY); } catch {}
+    try { localStorage.removeItem(ADMIN_CLIENT_ID_KEY); } catch {}
+  }
 }
 
 async function adminFetch(path, body) {
@@ -2341,6 +2359,7 @@ function renderTimer() {
 const adminModal     = document.getElementById('admin-modal');
 const adminForm      = document.getElementById('admin-form');
 const adminPinInput  = document.getElementById('admin-pin');
+const adminPinToggle = document.getElementById('admin-pin-toggle');
 const adminCancelBtn = document.getElementById('admin-cancel');
 const adminErrorBox  = document.getElementById('admin-modal-error');
 
@@ -2362,6 +2381,17 @@ function showAdminError(msg) {
   adminErrorBox.hidden = false;
 }
 if (adminCancelBtn) adminCancelBtn.addEventListener('click', closeAdminModal);
+if (adminPinToggle && adminPinInput) {
+  adminPinToggle.addEventListener('click', () => {
+    const showing = adminPinInput.type === 'text';
+    adminPinInput.type = showing ? 'password' : 'text';
+    adminPinToggle.setAttribute('aria-label', showing ? 'Mostrar PIN' : 'Ocultar PIN');
+    adminPinToggle.setAttribute('title', showing ? 'Mostrar PIN' : 'Ocultar PIN');
+    const icon = adminPinToggle.querySelector('.material-symbols-outlined');
+    if (icon) icon.textContent = showing ? 'visibility' : 'visibility_off';
+    adminPinInput.focus();
+  });
+}
 
 // Si la URL es /admin (o termina con #admin), restaura sesión admin o abre el modal.
 if (ADMIN_ROUTE) {
