@@ -267,6 +267,25 @@ function pilotColorInk(idx) {
   // star-gold = índice 3 → texto oscuro; el resto blanco
   return (idx % PILOT_COLORS.length === 3) ? '#333333' : '#ffffff';
 }
+
+function closePilotTooltips(except) {
+  document.querySelectorAll('.pilot-chip-avatar.is-tooltip-open').forEach(el => {
+    if (el !== except) el.classList.remove('is-tooltip-open');
+  });
+}
+
+function wirePilotTooltip(a) {
+  a.addEventListener('click', e => {
+    e.stopPropagation();
+    const willOpen = !a.classList.contains('is-tooltip-open');
+    closePilotTooltips(a);
+    a.classList.toggle('is-tooltip-open', willOpen);
+  });
+  a.addEventListener('blur', () => {
+    window.setTimeout(() => a.classList.remove('is-tooltip-open'), 120);
+  });
+}
+
 function makePilotAvatar(p, idx, opts) {
   const a = document.createElement('span');
   a.className = 'pilot-chip-avatar';
@@ -278,9 +297,12 @@ function makePilotAvatar(p, idx, opts) {
   const pilotLabel = `${p.character || ''} ${p.name || 'Piloto'}`.trim();
   a.title = pilotLabel;
   a.setAttribute('aria-label', pilotLabel);
+  a.setAttribute('tabindex', '0');
+  a.setAttribute('role', 'button');
   a.dataset.pilotName = pilotLabel;
   // mostramos el emoji + iniciales pequeñas
   a.innerHTML = `<span aria-hidden="true" style="font-size:.95rem;line-height:1;">${p.character || ''}</span>`;
+  wirePilotTooltip(a);
   if (opts && opts.compact) return a;
   return a;
 }
@@ -302,12 +324,20 @@ function renderPilotList(targetId, countId, maxVisible) {
   pilots.slice(0, limit).forEach((p, idx) => list.appendChild(makePilotAvatar(p, idx)));
   if (pilots.length > limit) {
     const extra = document.createElement('span');
+    const extraLabel = pilots.slice(limit).map(p => `${p.character} ${p.name}`).join(' · ');
     extra.className = 'pilot-chip-avatar pilot-chip-extra';
     extra.textContent = '+' + (pilots.length - limit);
-    extra.title = pilots.slice(limit).map(p => `${p.character} ${p.name}`).join('\n');
+    extra.title = extraLabel;
+    extra.setAttribute('aria-label', extraLabel);
+    extra.setAttribute('tabindex', '0');
+    extra.setAttribute('role', 'button');
+    extra.dataset.pilotName = extraLabel;
+    wirePilotTooltip(extra);
     list.appendChild(extra);
   }
 }
+document.addEventListener('click', () => closePilotTooltips());
+
 function renderPilots() {
   renderPilotList('pilot-list', 'pilot-count', 4);
   renderPilotList('pilot-list-mobile', 'pilot-count-mobile', 4);
@@ -2016,7 +2046,6 @@ let isAdmin = false;
 let adminTaken = false;
 const adminToggleBtn   = document.getElementById('admin-toggle-btn');
 const adminPanelEl     = document.getElementById('admin-panel');
-const adminTagEl       = document.getElementById('admin-tag');
 const adminSprintInput = document.getElementById('admin-sprint');
 const adminSprintSave  = document.getElementById('admin-sprint-save');
 const adminTimerSelect = document.getElementById('admin-timer-duration');
@@ -2033,7 +2062,6 @@ function refreshAdminUI() {
     adminToggleBtn.hidden = !!isAdmin;
   }
   if (adminPanelEl) adminPanelEl.hidden = !isAdmin;
-  if (adminTagEl)   adminTagEl.hidden   = !isAdmin;
   document.querySelectorAll('.admin-only').forEach(el => { el.hidden = !isAdmin; });
   if (adminBoardToggle) {
     adminBoardToggle.hidden = !isAdmin;
@@ -2584,30 +2612,6 @@ refreshAdminUI = function () {
     updatePos(name);
   });
   window.addEventListener('resize', refreshAll);
-})();
-
-/* ---------- Botón "Empezar carrera" del header (admin) ---------- */
-(function wireCreateRace() {
-  const btn = document.getElementById('create-race-btn');
-  if (!btn) return;
-  btn.addEventListener('click', async () => {
-    if (!SERVER_MODE) { toast('Modo local: no hay servidor', 'warn'); return; }
-    if (!isAdmin) {
-      toast('Solo el admin puede empezar la carrera', 'warn');
-      if (typeof openAdminModal === 'function') openAdminModal();
-      return;
-    }
-    try {
-      await adminFetch('/api/board', { active: true });
-      const dur = Number(adminTimerSelect && adminTimerSelect.value) || 300;
-      await adminFetch('/api/timer', { action: 'start', durationSec: dur });
-      toast('🏁 ¡Carrera empezada! Tablero abierto.', 'success');
-      const target = document.getElementById('retro');
-      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } catch {
-      toast('No se pudo iniciar la carrera', 'danger');
-    }
-  });
 })();
 
 /* ---------- Re-aplicar posición de carrusel del tablero cuando aparece ---------- */
