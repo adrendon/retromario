@@ -250,6 +250,60 @@ test('POST /api/objective rechaza sin credenciales admin', async () => {
   assert.strictEqual(r.status, 403);
 });
 
+
+test('POST /api/timer permite añadir 5 minutos completos después de expirar', async () => {
+  const adminCid = 'admin-extend-expired-1122aa';
+  const pilotCid = 'pilot-extend-expired-3344bb';
+  await openStreamHello(adminCid);
+  await openStreamHello(pilotCid);
+  await request('POST', '/api/admin/claim', { clientId: adminCid, pin: 'sitioBanco' });
+  await request('POST', '/api/board', { clientId: adminCid, active: true });
+  await request('POST', '/api/pilots', { clientId: pilotCid, name: 'Luz', character: '🍄' });
+  const started = await request('POST', '/api/timer', { clientId: adminCid, action: 'start', durationSec: 300 });
+  assert.strictEqual(started.status, 200);
+
+  const realNow = Date.now;
+  Date.now = () => started.body.startedAt + 420_000;
+  try {
+    const extended = await request('POST', '/api/timer', { clientId: adminCid, action: 'resume', durationSec: 720 });
+    assert.strictEqual(extended.status, 200);
+    assert.strictEqual(extended.body.running, true);
+    assert.strictEqual(extended.body.durationSec, 720);
+    assert.strictEqual(extended.body.expired, false);
+
+    const card = await request('POST', '/api/cards', { clientId: pilotCid, cat: 'banana-past', text: 'tiempo extra' });
+    assert.strictEqual(card.status, 201);
+  } finally {
+    Date.now = realNow;
+  }
+});
+
+test('POST /api/timer al reanudar con duración conserva elapsed pausado', async () => {
+  const adminCid = 'admin-extend-paused-1122aa';
+  await openStreamHello(adminCid);
+  await request('POST', '/api/admin/claim', { clientId: adminCid, pin: 'sitioBanco' });
+  const started = await request('POST', '/api/timer', { clientId: adminCid, action: 'start', durationSec: 300 });
+  assert.strictEqual(started.status, 200);
+
+  const realNow = Date.now;
+  Date.now = () => started.body.startedAt + 300_000;
+  try {
+    const paused = await request('POST', '/api/timer', { clientId: adminCid, action: 'pause' });
+    assert.strictEqual(paused.status, 200);
+    assert.strictEqual(paused.body.running, false);
+    assert.strictEqual(paused.body.elapsedAtPause, 300_000);
+
+    const resumed = await request('POST', '/api/timer', { clientId: adminCid, action: 'resume', durationSec: 600 });
+    assert.strictEqual(resumed.status, 200);
+    assert.strictEqual(resumed.body.running, true);
+    assert.strictEqual(resumed.body.durationSec, 600);
+    assert.strictEqual(resumed.body.elapsedAtPause, 300_000);
+    assert.strictEqual(resumed.body.expired, false);
+  } finally {
+    Date.now = realNow;
+  }
+});
+
 test('POST /api/cards rechaza cuando terminó el tiempo del tablero', async () => {
   const adminCid = 'admin-expired-aabb1100';
   const pilotCid = 'pilot-expired-ccdd2200';
