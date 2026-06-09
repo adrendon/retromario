@@ -675,9 +675,10 @@ async function handleApi(req, res, url) {
     return send(res, 200, { steps: data.steps });
   }
 
-  // POST /api/objective  body: { text }
+  // POST /api/objective  body: { clientId, adminToken, text }  (admin)
   if (req.method === 'POST' && parts.length === 2 && parts[1] === 'objective') {
     const body = await readBody(req);
+    if (!requireAdmin(req, body)) return send(res, 403, { error: 'Solo el admin puede cambiar el objetivo' });
     data.objective = sanitize(body.text, 800);
     saveData();
     broadcast('objective:update', { text: data.objective });

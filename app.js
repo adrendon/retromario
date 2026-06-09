@@ -45,6 +45,8 @@ const CHARACTERS = [
 ];
 
 const SERVER_MODE = location.protocol === 'http:' || location.protocol === 'https:';
+const ADMIN_ROUTE = /^\/admin\/?$/i.test(location.pathname) || location.hash === '#admin';
+document.body.classList.toggle('is-admin-route', ADMIN_ROUTE);
 
 /* ---------- Utilidades ---------- */
 function readJSON(key, fallback) {
@@ -1084,19 +1086,25 @@ if (objectiveText) {
 if (objectiveSave) {
   objectiveSave.addEventListener('click', async () => {
     const text = (objectiveText.value || '').trim();
-    objective = text;
-    objectiveDirty = false;
+    if (SERVER_MODE && !isAdmin) {
+      toast('Solo el admin puede guardar el objetivo', 'warn');
+      return;
+    }
     if (SERVER_MODE) {
       try {
-        await fetch('/api/objective', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text })
-        });
+        const r = await adminFetch('/api/objective', { text });
+        const out = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(out.error || 'objective');
+        objective = typeof out.text === 'string' ? out.text : text;
+        objectiveDirty = false;
+        renderObjective();
         flashObjective('Guardado ✓');
       } catch { toast('No pude guardar el objetivo', 'warn'); }
     } else {
+      objective = text;
+      objectiveDirty = false;
       writeJSON('mario-kart-retro-objective-v1', text);
+      renderObjective();
       flashObjective('Guardado ✓ (local)');
     }
   });
@@ -2044,7 +2052,6 @@ function updateRaceVisibility() {
 /* ---------- Admin ---------- */
 let isAdmin = false;
 let adminTaken = false;
-const adminToggleBtn   = document.getElementById('admin-toggle-btn');
 const adminPanelEl     = document.getElementById('admin-panel');
 const adminSprintInput = document.getElementById('admin-sprint');
 const adminSprintSave  = document.getElementById('admin-sprint-save');
@@ -2057,10 +2064,6 @@ const adminReleaseBtn  = document.getElementById('admin-release');
 function refreshAdminUI() {
   document.body.classList.toggle('is-admin', !!isAdmin);
   if (typeof renderActions === 'function') renderActions();
-  if (adminToggleBtn) {
-    // Visible cuando no eres admin (para pedir PIN). Oculto cuando ya entraste.
-    adminToggleBtn.hidden = !!isAdmin;
-  }
   if (adminPanelEl) adminPanelEl.hidden = !isAdmin;
   document.querySelectorAll('.admin-only').forEach(el => { el.hidden = !isAdmin; });
   if (adminBoardToggle) {
@@ -2113,13 +2116,6 @@ async function restoreAdminSession() {
   } catch { return false; }
 }
 
-if (adminToggleBtn) {
-  adminToggleBtn.addEventListener('click', () => {
-    if (!SERVER_MODE) { toast('El modo admin requiere el servidor', 'warn'); return; }
-    if (adminTaken && !isAdmin) { toast('Ya hay un admin activo', 'warn'); return; }
-    openAdminModal();
-  });
-}
 if (adminReleaseBtn) {
   adminReleaseBtn.addEventListener('click', async () => {
     if (!SERVER_MODE || !clientId) return;
@@ -2252,7 +2248,10 @@ function applyTimerState(t) {
     setTrack('main');
   }
   if (adminTimerPause) {
-    adminTimerPause.textContent = timerState.running ? '⏸️ Pausar' : '▶️ Reanudar';
+    const timerActionLabel = timerState.running ? 'Pausar cronómetro' : 'Reanudar cronómetro';
+    adminTimerPause.textContent = timerState.running ? '⏸️' : '▶️';
+    adminTimerPause.setAttribute('aria-label', timerActionLabel);
+    adminTimerPause.setAttribute('title', timerActionLabel);
     adminTimerPause.disabled = !(timerState.startedAt || timerState.elapsedAtPause);
   }
   if (adminTimerSelect) adminTimerSelect.value = String(timerState.durationSec);
@@ -2298,55 +2297,20 @@ function renderTimer() {
 //  handlers también recalculen la visibilidad de la pista.)
 
 /* ====================================================================
-   MODAL DE ADMIN (PIN + nombre + personaje) — sin alerts ni prompts
+   MODAL DE ADMIN (solo PIN) — sin alerts ni prompts
    ==================================================================== */
 const adminModal     = document.getElementById('admin-modal');
 const adminForm      = document.getElementById('admin-form');
 const adminPinInput  = document.getElementById('admin-pin');
-const adminNameInput = document.getElementById('admin-name');
-const adminCharGrid  = document.getElementById('admin-character-grid');
 const adminCancelBtn = document.getElementById('admin-cancel');
 const adminErrorBox  = document.getElementById('admin-modal-error');
 
-function buildAdminCharacterGrid(selected) {
-  if (!adminCharGrid) return;
-  adminCharGrid.innerHTML = '';
-  const fallback = selected || CHARACTERS[0].emoji;
-  CHARACTERS.forEach((ch, i) => {
-    const id = `admin-char-${i}`;
-    const label = document.createElement('label');
-    label.className = 'char-option';
-    label.title = ch.name;
-    const checked = ch.emoji === fallback ? 'checked' : '';
-    label.innerHTML = `
-      <input type="radio" name="admin-character" id="${id}" value="${ch.emoji}" ${checked} />
-      <span class="char-emoji" aria-hidden="true">${ch.emoji}</span>
-      <span class="char-name">${ch.name}</span>
-    `;
-    adminCharGrid.appendChild(label);
-  });
-}
 function openAdminModal() {
   if (!adminModal) return;
   if (adminErrorBox) { adminErrorBox.hidden = true; adminErrorBox.textContent = ''; }
 
-  const identityFields = document.getElementById('admin-identity-fields');
-  const pilotInfo      = document.getElementById('admin-pilot-info');
-  const pilotChar      = document.getElementById('admin-pilot-char');
-  const pilotName      = document.getElementById('admin-pilot-name');
-
-  if (currentPilot) {
-    // Ya tiene identidad: mostrar quién es y ocultar campos de nombre/personaje
-    if (identityFields) identityFields.hidden = true;
-    if (pilotInfo) pilotInfo.hidden = false;
-    if (pilotChar) pilotChar.textContent = currentPilot.character || '';
-    if (pilotName) pilotName.textContent = currentPilot.name || '';
-  } else {
-    // Sin piloto aún: mostrar los campos de identidad
-    if (identityFields) identityFields.hidden = false;
-    if (pilotInfo) pilotInfo.hidden = true;
-    buildAdminCharacterGrid(null);
-  }
+  // El acceso admin es un flujo solo de administrador: no pide nombre,
+  // personaje ni ningún dato de piloto/usuario final.
 
   if (adminPinInput) adminPinInput.value = '';
   adminModal.hidden = false;
@@ -2361,7 +2325,7 @@ function showAdminError(msg) {
 if (adminCancelBtn) adminCancelBtn.addEventListener('click', closeAdminModal);
 
 // Si la URL es /admin (o termina con #admin), restaura sesión admin o abre el modal.
-if (/^\/admin\/?$/i.test(location.pathname) || location.hash === '#admin') {
+if (ADMIN_ROUTE) {
   setTimeout(async () => {
     if (!clientId) await waitForClientId(2000);
     const restored = await restoreAdminSession();
@@ -2379,17 +2343,6 @@ if (adminForm) {
     }
     const pin = (adminPinInput.value || '').trim();
     if (!pin) { showAdminError('Escribe el PIN'); return; }
-
-    const name = (adminNameInput && adminNameInput.value || '').trim();
-    const checked = adminForm.querySelector('input[name="admin-character"]:checked');
-    const character = checked ? checked.value : (currentPilot ? currentPilot.character : '🍄');
-    if (name) {
-      currentPilot = { name, character };
-      writeJSON(PILOT_KEY, currentPilot);
-      document.body.classList.remove('no-pilot');
-      try { await registerPilot(currentPilot); } catch {}
-      renderPilots();
-    }
 
     try {
       const r = await adminFetch('/api/admin/claim', { pin });
@@ -2651,8 +2604,7 @@ refreshAdminUI = function () {
   }
 
   if (!currentPilot) {
-    // Si entró por /admin, salta el modal de piloto y abre directo el de admin.
-    const isAdminRoute = /^\/admin\/?$/i.test(location.pathname) || location.hash === '#admin';
-    if (!isAdminRoute) openJoinModal();
+    // Si entró por /admin, salta el modal de piloto; el flujo admin abre su propio modal.
+    if (!ADMIN_ROUTE) openJoinModal();
   }
 })();
