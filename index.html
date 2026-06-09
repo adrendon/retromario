@@ -219,17 +219,14 @@
           ¿No estás contento con la velocidad en el equipo? Prepárate para una retrospectiva tan imprevisible como una partida de Mario Kart.
         </p>
       </div>
-      <div class="hero-participant-actions flex flex-wrap gap-3 shrink-0">
-        <a href="#participant-dashboard" class="bg-luigi-green text-white px-6 py-3 rounded-xl border-2 border-slate-gray shadow-retro font-mono text-sm hover:-translate-y-1 transition-all">🎮 Mi estado</a>
-        <a href="#retro" class="bg-white text-ink-black px-6 py-3 rounded-xl border-2 border-slate-gray shadow-retro font-mono text-sm hover:bg-surface-low transition-all">📝 Ir a la retro</a>
+      <div class="hero-participant-actions flex flex-wrap gap-3 shrink-0 md:justify-end">
+        <div id="board-timer" hidden class="inline-flex items-center gap-3 bg-white border-2 border-slate-gray rounded-xl px-4 py-2 shadow-retro-sm">
+          <span class="text-2xl">⏱️</span>
+          <span class="font-mono text-xs text-slate-gray uppercase">Tiempo del tablero:</span>
+          <span id="timer-clock" class="font-display font-bold text-2xl text-mario-red">--:--</span>
+          <span id="timer-state" class="font-mono text-[10px] text-slate-gray uppercase"></span>
+        </div>
       </div>
-    </div>
-
-    <div id="board-timer" hidden class="mt-6 inline-flex items-center gap-3 bg-white border-2 border-slate-gray rounded-xl px-4 py-2 shadow-retro-sm">
-      <span class="text-2xl">⏱️</span>
-      <span class="font-mono text-xs text-slate-gray uppercase">Tiempo del tablero:</span>
-      <span id="timer-clock" class="font-display font-bold text-2xl text-mario-red">--:--</span>
-      <span id="timer-state" class="font-mono text-[10px] text-slate-gray uppercase"></span>
     </div>
 
     <!-- Panel admin movido a la columna derecha. -->
