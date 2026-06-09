@@ -772,10 +772,20 @@ function getCheckedIndices() {
   const out = []; checks.forEach((c, i) => { if (c.checked) out.push(i); }); return out;
 }
 
-function advanceStepsCarouselOnMobile(index) {
+function advanceStepsCarousel(index) {
   const carousel = document.getElementById('steps-carousel');
-  if (!carousel || !window.matchMedia('(max-width: 767px)').matches) return;
-  const next = carousel.children[index + 1];
+  if (!carousel) return;
+  const items = [...carousel.children];
+  const current = items[index];
+  if (!current) return;
+  const styles = getComputedStyle(carousel);
+  const gap = parseFloat(styles.columnGap || styles.gap || '16') || 16;
+  const itemWidth = current.getBoundingClientRect().width + gap;
+  const visible = Math.max(1, Math.round(carousel.clientWidth / itemWidth));
+  const completed = index + 1;
+  const shouldAdvance = visible === 1 || completed % visible === 0;
+  if (!shouldAdvance) return;
+  const next = items[index + 1];
   if (!next) return;
   next.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
 }
@@ -798,7 +808,7 @@ checks.forEach((c, i) => {
     updateProgress();
     updateStepLocks();
     try { await saveSteps(getCheckedIndices()); } catch {}
-    if (c.checked) advanceStepsCarouselOnMobile(i);
+    if (c.checked) advanceStepsCarousel(i);
     // Paso 5 (índice 4) → activa/desactiva el tablero y el cronómetro.
     if (typeof handleStep5Change === 'function' && (i === 4 || i > 4)) {
       try { await handleStep5Change(checks[4] && checks[4].checked); } catch {}
@@ -969,16 +979,19 @@ function renderRace() {
   if (raceStatus) raceStatus.hidden = true;
   if (raceMsg) raceMsg.innerHTML = '';
 
-  // Podio: sólo aparece cuando alguien llegó a la meta (winner !== null)
+  // Podio: sólo aparece cuando ya están definidos 1º, 2º y 3º por llegada real.
   if (raceResults && podiumStage) {
-    if (!raceState.winner) {
+    const finishers = (raceState.finishers && raceState.finishers.length)
+      ? raceState.finishers
+      : standings.filter(s => s.finished);
+    if (finishers.length < 3) {
       raceResults.hidden = true;
       return;
     }
     raceResults.hidden = false;
 
-    // Top 3 por orden ya calculado en el servidor (finished primero, luego columnas, luego cards)
-    const top3 = standings.slice(0, 3);
+    // Top 3 por orden de llegada real; no se muestran pilotos que aún no terminaron.
+    const top3 = finishers.slice(0, 3);
     const medals = ['🥇','🥈','🥉'];
     for (let i = 0; i < 3; i++) {
       const spot = document.getElementById('podium-' + (i + 1));
@@ -993,7 +1006,7 @@ function renderRace() {
     }
 
     // Resto fuera del podio (los "llorando afuera")
-    const losers = standings.slice(3);
+    const losers = standings.filter(s => !s.finished).concat(finishers.slice(3));
     if (!losers.length) {
       podiumLosersWrap.hidden = true;
       losersList.innerHTML = '';
@@ -1146,6 +1159,7 @@ const moodClearBtn  = document.getElementById('mood-clear-btn');
 const moodCancelBtn = document.getElementById('mood-cancel-btn');
 const moodsWall     = document.getElementById('moods-wall');
 const moodsWallInline = document.getElementById('moods-wall-inline');
+const adminMoodsWall = document.getElementById('admin-moods-wall');
 const myMoodCard    = document.getElementById('my-mood-card');
 
 function myMood() {
@@ -1232,7 +1246,7 @@ if (moodClearBtn) {
 }
 
 function renderMoods() {
-  const targets = [moodsWall, moodsWallInline].filter(Boolean);
+  const targets = [moodsWall, moodsWallInline, adminMoodsWall].filter(Boolean);
   targets.forEach(t => { t.innerHTML = ''; });
 
   const mine = myMood();
@@ -1297,7 +1311,7 @@ function renderActions() {
   if (!sorted.length) {
     const li = document.createElement('li');
     li.className = 'actions-empty';
-    li.textContent = 'Aún no hay acciones creadas. El admin agregará hasta 5 para que el equipo vote.';
+    li.textContent = 'Aún no hay acciones para votar.';
     actionsList.appendChild(li);
   } else {
     sorted.forEach((a, idx) => {
@@ -2297,16 +2311,17 @@ let timerOffsetMs = 0;
 function applyTimerState(t) {
   timerState = { ...timerState, ...t };
   if (timerState.serverNow) timerOffsetMs = Date.now() - timerState.serverNow;
-  // Música del cronómetro: usa la pista del tablero solo si el usuario no eligió otra.
+  // Música del cronómetro: al correr fuerza la pista creada para el tiempo
+  // y la refleja en el reproductor aunque antes hubiera otra pista seleccionada.
   if (timerState.running) {
+    setTrack('timer');
     if (!ADMIN_AUDIO_MUTED && !musicOn) startMusic();
-    autoSetTrack('timer');
   } else {
     autoSetTrack('main');
   }
   if (adminTimerPause) {
     const timerActionLabel = timerState.running ? 'Pausar cronómetro' : 'Reanudar cronómetro';
-    adminTimerPause.textContent = timerState.running ? '⏸️' : '▶️';
+    adminTimerPause.textContent = timerState.running ? '⏸️ Pausar' : '▶️ Reanudar';
     adminTimerPause.setAttribute('aria-label', timerActionLabel);
     adminTimerPause.setAttribute('title', timerActionLabel);
     adminTimerPause.disabled = !(timerState.startedAt || timerState.elapsedAtPause);
