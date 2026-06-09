@@ -50,6 +50,10 @@ body.is-admin-route #mini-race {
   order: 2;
   position: static !important;
 }
+body.is-admin-route #mini-race {
+  display: none !important;
+}
+body.is-admin-route #mini-race { position: static !important; }
 
 /* ---------- Pasos: locks y estado admin-only ---------- */
 .step { position: relative; }

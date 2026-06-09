@@ -1910,8 +1910,10 @@ function startMusic() {
   musicOn = true;
   writeSession(MUSIC_KEY, true);
   if (musicBtn) {
-    musicBtn.textContent = '⏸️ Pausar';
+    musicBtn.textContent = '⏸️';
     musicBtn.setAttribute('aria-pressed', 'true');
+    musicBtn.setAttribute('aria-label', 'Pausar música');
+    musicBtn.setAttribute('title', 'Pausar música');
     musicBtn.classList.add('is-on');
   }
   syncMusicModal();
@@ -1934,8 +1936,10 @@ function stopMusic() {
     }, 250);
   }
   if (musicBtn) {
-    musicBtn.textContent = '▶️ Play';
+    musicBtn.textContent = '▶️';
     musicBtn.setAttribute('aria-pressed', 'false');
+    musicBtn.setAttribute('aria-label', 'Reproducir música');
+    musicBtn.setAttribute('title', 'Reproducir música');
     musicBtn.classList.remove('is-on');
   }
   syncMusicModal();
@@ -1973,7 +1977,9 @@ function openMusicModal() {
 }
 function syncMusicModal() {
   if (musicModalToggle) {
-    musicModalToggle.textContent = musicOn ? '⏸️ Pausar' : '▶️ Play';
+    musicModalToggle.textContent = musicOn ? '⏸️' : '▶️';
+    musicModalToggle.setAttribute('aria-label', musicOn ? 'Pausar música' : 'Reproducir música');
+    musicModalToggle.setAttribute('title', musicOn ? 'Pausar música' : 'Reproducir música');
   }
   if (musicStatus) musicStatus.textContent = musicOn ? 'Sonando 🎶' : 'En pausa';
   if (musicTrackName) musicTrackName.textContent = getCurrentTrackName();
@@ -2460,8 +2466,11 @@ refreshAdminUI = function () {
   // El icono del botón de la barra se mantiene como ▶️/⏸️ (no como label largo).
   function syncBar() {
     if (btn) {
+      const musicActionLabel = musicOn ? 'Pausar música' : 'Reproducir música';
       btn.textContent = musicOn ? '⏸️' : '▶️';
       btn.setAttribute('aria-pressed', musicOn ? 'true' : 'false');
+      btn.setAttribute('aria-label', musicActionLabel);
+      btn.setAttribute('title', musicActionLabel);
     }
     if (trackEl && typeof getCurrentTrackName === 'function') {
       trackEl.textContent = getCurrentTrackName();
@@ -2619,7 +2628,11 @@ refreshAdminUI = function () {
   if (wantsMusic) {
     // Autoplay está bloqueado hasta que haya interacción.
     // Marcamos el botón y esperamos un primer click en cualquier sitio.
-    if (musicBtn) musicBtn.textContent = '▶️ Pulsa para reanudar música';
+    if (musicBtn) {
+      musicBtn.textContent = '▶️';
+      musicBtn.setAttribute('aria-label', 'Reproducir música');
+      musicBtn.setAttribute('title', 'Reproducir música');
+    }
     const resumer = () => { startMusic(); document.removeEventListener('click', resumer, true); };
     document.addEventListener('click', resumer, true);
   }
