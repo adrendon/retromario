@@ -1033,17 +1033,21 @@ function renderRace() {
     if (!actuallyFinished && Number(s.columns || 0) > 0) kart.classList.add('is-running');
 
     if (actuallyFinished) {
-      // Kart en meta: anclado a la derecha para pisar la bandera a cuadros
+      // 6/6: el kart pisa la bandera — se posiciona al borde derecho de race-lanes
+      // La bandera (w-14 = 56px) está absolute sobre race-track, no sobre race-lanes,
+      // así que right:0 en race-lanes lo deja justo al límite de la zona de carrera.
       kart.style.left  = 'auto';
       kart.style.right = '0';
-      kart.classList.add('is-tooltip-start'); // tooltip hacia la izquierda para no salirse
+      kart.classList.add('is-tooltip-start');
     } else {
-      // Karts en tránsito: 2% (sin tarjetas) hasta 78% (5/6 columnas)
-      const rawPct = (Number(s.columns || 0) / target) * 100;
-      const pct = Math.max(2, Math.min(78, rawPct * 0.76 + 2));
+      // Cálculo limpio: cada columna es 1/6 del ancho disponible (sin offset artificial).
+      // 0/6 → 0%, 1/6 → 16.67%, ... 5/6 → 83.33%
+      // Se deja un margen mínimo de 1% para que el kart no quede pegado al borde izquierdo.
+      const cols = Number(s.columns || 0);
+      const pct  = Math.max(1, (cols / target) * 100);
       kart.style.left  = pct + '%';
       kart.style.right = 'auto';
-      if (pct <= 15) kart.classList.add('is-tooltip-start');
+      if (pct <= 20) kart.classList.add('is-tooltip-start');
     }
 
     const isMe = currentPilot && s.name.toLowerCase() === currentPilot.name.toLowerCase();
