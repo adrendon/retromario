@@ -1605,12 +1605,14 @@ if (!SERVER_MODE) {
 const MUSIC_KEY = 'mario-kart-retro-music-on-v1';
 const MUSIC_TRACK_KEY = 'mario-kart-retro-music-track-v1';
 const MUSIC_VOLUME_KEY = 'mario-kart-retro-music-volume-v1';
+const MUSIC_MANUAL_TRACK_KEY = 'mario-kart-retro-music-manual-track-v1';
 const musicBtn = document.getElementById('music-toggle-btn');
 let audioCtx = null;
 let musicGain = null;
 let musicTimer = null;
 let musicOn = false;
 let currentTrack = readSession(MUSIC_TRACK_KEY, 'main');  // id en TRACKS
+let musicTrackManuallySelected = readSession(MUSIC_MANUAL_TRACK_KEY, 'false') === 'true';
 
 // Pista principal — Retro Kart Theme (8-bit)
 const MELODY = [
@@ -1740,21 +1742,34 @@ const TRACKS = [
   },
 ];
 function trackById(id) { return TRACKS.find(t => t.id === id) || TRACKS[0]; }
-function sequenceBeats(seq) { return seq.reduce((sum, note) => sum + (Number(note[1]) || 0), 0); }
-function extendSequence(seq, minBeats) {
-  const total = sequenceBeats(seq);
-  if (!total || total >= minBeats) return seq;
-  const repeats = Math.ceil(minBeats / total);
-  return Array.from({ length: repeats }, () => seq).flat();
+const MUSIC_LOOP_MINUTES = 5;
+function buildLoopSequence(seq, targetBeats) {
+  const out = [];
+  let total = 0;
+  if (!Array.isArray(seq) || !seq.length || targetBeats <= 0) return out;
+  if (!seq.some(([, beats]) => Number(beats) > 0)) return out;
+  while (total < targetBeats) {
+    for (const [m, rawBeats] of seq) {
+      const beats = Number(rawBeats) || 0;
+      if (beats <= 0) continue;
+      const remaining = targetBeats - total;
+      if (remaining <= 0) break;
+      out.push([m, Math.min(beats, remaining)]);
+      total += Math.min(beats, remaining);
+    }
+  }
+  return out;
 }
 function trackData(id) {
   const t = trackById(id);
-  // Cada canción debe sentirse como una pista completa, no como un jingle corto.
-  // Repetimos frases hasta que cada loop dure al menos 5 minutos.
+  const targetBeats = t.bpm * MUSIC_LOOP_MINUTES;
+  // Todas las canciones son loops completos de 5 minutos: las frases cortas se
+  // repiten y se recortan exactamente al final del bloque para que no sean jingles.
   return {
-    melody: extendSequence(t.melody, t.bpm * 5),
-    bass: extendSequence(t.bass, t.bpm * 5),
+    melody: buildLoopSequence(t.melody, targetBeats),
+    bass: buildLoopSequence(t.bass, targetBeats),
     bpm: t.bpm,
+    loopMinutes: MUSIC_LOOP_MINUTES,
     melodyType: t.melodyType || 'square',
     bassType: t.bassType || 'triangle'
   };
@@ -1766,6 +1781,8 @@ function getCurrentTrackName() {
 function setTrackByIndex(idx) {
   const n = TRACKS.length;
   const i = ((idx % n) + n) % n;
+  musicTrackManuallySelected = true;
+  writeSession(MUSIC_MANUAL_TRACK_KEY, true);
   setTrack(TRACKS[i].id);
   writeSession(MUSIC_TRACK_KEY, TRACKS[i].id);
   renderTrackList();
@@ -1941,6 +1958,9 @@ function setTrack(track) {
   }
   if (window.__syncMusicBar) window.__syncMusicBar();
 }
+function autoSetTrack(track) {
+  if (!musicTrackManuallySelected) setTrack(track);
+}
 
 /* ---------- MODAL de música (Paso 1) ---------- */
 const musicModal       = document.getElementById('music-modal');
@@ -2050,8 +2070,9 @@ function applyBoardActive(active) {
 
 function updateRaceVisibility() {
   if (!miniRaceSection) return;
-  const totalCards = CATEGORIES.reduce((n, c) => n + ((cards[c] && cards[c].length) || 0), 0);
-  miniRaceSection.hidden = !(boardActive && totalCards > 0);
+  // La pista debe aparecer siempre que el tablero esté activo, también en admin
+  // y aunque todavía no existan tarjetas/karts en carrera.
+  miniRaceSection.hidden = !boardActive;
 }
 
 /* ---------- Admin ---------- */
@@ -2245,12 +2266,12 @@ let timerOffsetMs = 0;
 function applyTimerState(t) {
   timerState = { ...timerState, ...t };
   if (timerState.serverNow) timerOffsetMs = Date.now() - timerState.serverNow;
-  // Música del cronómetro: si está corriendo, pista 'timer'; si no, 'main'
+  // Música del cronómetro: usa la pista del tablero solo si el usuario no eligió otra.
   if (timerState.running) {
     if (!musicOn) startMusic();
-    setTrack('timer');
+    autoSetTrack('timer');
   } else {
-    setTrack('main');
+    autoSetTrack('main');
   }
   if (adminTimerPause) {
     const timerActionLabel = timerState.running ? 'Pausar cronómetro' : 'Reanudar cronómetro';
@@ -2287,7 +2308,7 @@ function renderTimer() {
   if (remainingMs <= 0) {
     if (timerStateEl) timerStateEl.textContent = '¡Tiempo! 🏁';
     boardTimerEl.classList.add('is-finished');
-    setTrack('main');
+    autoSetTrack('main');
     setBoardEnded(boardActive, { showModal: true });
   } else {
     boardTimerEl.classList.remove('is-finished');
@@ -2405,6 +2426,7 @@ const _origApplyBoardActive = applyBoardActive;
 applyBoardActive = function (active) {
   _origApplyBoardActive(active);
   syncBoardVisibility();
+  if (typeof updateRaceVisibility === 'function') updateRaceVisibility();
 };
 
 // Único wrapper de refreshAdminUI: actualiza candados de pasos + visibilidad del tablero.
