@@ -899,6 +899,7 @@ function toast(message, kind) {
    Gana el primero que escriba al menos una tarjeta en las 6 columnas.
    Desempate: total de tarjetas escritas.
 */
+const raceTrack   = document.getElementById('race-track');
 const raceLanes   = document.getElementById('race-lanes');
 const raceResults = document.getElementById('race-results');
 const raceStatus  = document.getElementById('race-status');
@@ -911,6 +912,25 @@ let raceState = { target: 6, standings: [], winner: null };
 let lastWinnerKey = null;
 
 function escapeText(s) { return String(s).replace(/[<>&]/g, ch => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[ch])); }
+
+const RACE_DENSITY_CLASSES = ['race-density-normal', 'race-density-compact', 'race-density-dense', 'race-density-ultra'];
+
+function getRaceDensity(totalPilots) {
+  if (totalPilots > 12) return 'ultra';
+  if (totalPilots > 8) return 'dense';
+  if (totalPilots > 5) return 'compact';
+  return 'normal';
+}
+
+function applyRaceDensity(totalPilots) {
+  const density = getRaceDensity(totalPilots);
+  [raceTrack, raceLanes, raceResults, podiumStage, podiumLosersWrap].forEach(el => {
+    if (!el) return;
+    el.classList.remove(...RACE_DENSITY_CLASSES);
+    el.classList.add(`race-density-${density}`);
+    el.dataset.pilotCount = String(totalPilots);
+  });
+}
 
 function applyRaceState(rs) {
   raceState = rs || raceState;
@@ -939,6 +959,7 @@ function renderRace() {
   raceLanes.innerHTML = '';
   const target = raceState.target || 6;
   const standings = raceState.standings || [];
+  applyRaceDensity(standings.length);
 
   if (!standings.length) {
     const e = document.createElement('div');
