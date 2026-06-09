@@ -872,8 +872,10 @@ async function handleApi(req, res, url) {
     if (body.durationSec != null) {
       const d = Math.max(10, Math.min(60 * 60, Number(body.durationSec) || 300));
       data.timer.durationSec = d;
-      // si está detenido, resetea el elapsed; si está corriendo, mantenemos
-      if (!data.timer.running) data.timer.elapsedAtPause = 0;
+      // Si solo se cambia la duración con el cronómetro detenido, empezamos limpio.
+      // En un resume con duración (por ejemplo, añadir 5 min tras expirar),
+      // conservamos el elapsed pausado para que el tiempo añadido no se duplique.
+      if (!data.timer.running && action !== 'resume') data.timer.elapsedAtPause = 0;
     }
     if (action === 'start') {
       data.timer.startedAt = now;

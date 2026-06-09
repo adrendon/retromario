@@ -2352,24 +2352,34 @@ function setBoardEnded(ended, { showModal = true } = {}) {
   }
 }
 
-function timerRemainingMs() {
-  const totalMs = timerState.durationSec * 1000;
+function timerElapsedMs({ includeOvertime = false } = {}) {
   let elapsedMs = timerState.elapsedAtPause || 0;
   if (timerState.running && timerState.startedAt) {
     const localServerNow = Date.now() - timerOffsetMs;
     elapsedMs += (localServerNow - timerState.startedAt);
   }
-  return Math.max(0, totalMs - elapsedMs);
+  if (includeOvertime) return Math.max(0, elapsedMs);
+  return Math.max(0, Math.min(timerState.durationSec * 1000, elapsedMs));
+}
+
+function timerRemainingMs() {
+  const totalMs = timerState.durationSec * 1000;
+  return Math.max(0, totalMs - timerElapsedMs());
 }
 
 async function addBoardTime(seconds) {
   if (!isAdmin || !clientId) return;
-  const elapsedSec = Math.max(0, Math.floor(((timerState.durationSec * 1000) - timerRemainingMs()) / 1000));
-  const nextDuration = Math.max(timerState.durationSec + seconds, elapsedSec + seconds);
+  const elapsedSec = Math.max(0, Math.floor(timerElapsedMs({ includeOvertime: true }) / 1000));
+  const remainingSec = Math.max(0, Math.ceil(timerRemainingMs() / 1000));
+  const nextDuration = elapsedSec + remainingSec + seconds;
   try {
-    await adminFetch('/api/timer', { durationSec: nextDuration, action: 'resume' });
+    const timerResponse = await adminFetch('/api/timer', { durationSec: nextDuration, action: 'resume' });
+    if (!timerResponse.ok) throw new Error('timer add failed');
     setBoardEnded(false);
-    if (!boardActive) await adminFetch('/api/board', { active: true });
+    if (!boardActive) {
+      const boardResponse = await adminFetch('/api/board', { active: true });
+      if (!boardResponse.ok) throw new Error('board activation failed');
+    }
     toast(`Se añadieron ${Math.round(seconds / 60)} min al tablero ⏱️`, 'success');
   } catch { toast('No se pudo añadir tiempo', 'danger'); }
 }
