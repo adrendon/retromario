@@ -311,31 +311,6 @@ body:not(.is-admin) .step-check { visibility:hidden; pointer-events:none; }
 .race-lanes.race-density-dense .race-kart.is-me,
 .race-lanes.race-density-ultra .race-kart.is-me { outline-width:1px; }
 
-/* Con 5+ pilotos, los extremos de la pista muestran el nombre en un lateral
-   para que no se pierda contra los bordes superior/inferior de la pista. */
-.race-lane-label-right::after,
-.race-lane-label-left::after {
-  content:attr(data-pilot-name);
-  position:absolute;
-  top:50%;
-  max-width:46%;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-  transform:translateY(-50%);
-  pointer-events:none;
-  background:#111827;
-  color:#fff;
-  border-radius:999px;
-  padding:3px 7px;
-  font-size:.58rem;
-  font-family:'JetBrains Mono', monospace;
-  font-weight:700;
-  z-index:20;
-}
-.race-lane-label-right::after { right:2px; text-align:right; }
-.race-lane-label-left::after { left:2px; text-align:left; }
-
 /* ---------- Podio ---------- */
 .podium-block.podium-1 { height:90px; }
 .podium-block.podium-2 { height:60px; }
@@ -691,6 +666,13 @@ body:not(.is-admin) #como-hacerlo { display: none !important; }
 .pilot-chip-avatar.is-tooltip-end:hover::after,
 .pilot-chip-avatar.is-tooltip-end:focus-visible::after,
 .pilot-chip-avatar.is-tooltip-end.is-tooltip-open::after { transform:translateY(0); }
+/* Tooltip del kart: ancla a izquierda cuando está al inicio, a derecha cuando llegó a la meta */
+.race-kart.is-tooltip-start::after { left:0; transform:translateY(4px); }
+.race-kart.is-tooltip-start:hover::after,
+.race-kart.is-tooltip-start:focus-visible::after { opacity:1; transform:translateY(0); }
+.race-kart.is-finished::after  { left:auto; right:0; transform:translateY(4px); }
+.race-kart.is-finished:hover::after,
+.race-kart.is-finished:focus-visible::after { opacity:1; transform:translateY(0); }
 .race-kart .race-kart-name { display:none; }
 body:not(.is-admin) #main-layout { flex-direction:column; }
 body:not(.is-admin) #main-layout > div,
