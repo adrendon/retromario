@@ -91,6 +91,26 @@ body:not(.is-admin) .step-check { visibility:hidden; pointer-events:none; }
 }
 
 /* ---------- Cards del tablero ---------- */
+.card-list {
+  min-height:0;
+  overscroll-behavior:contain;
+  scrollbar-gutter:stable;
+}
+.card-list.has-card-scroll {
+  max-height:23.5rem;
+  flex:0 1 23.5rem;
+}
+.card-list.has-card-scroll::-webkit-scrollbar { width:10px; }
+.card-list.has-card-scroll::-webkit-scrollbar-track {
+  background:var(--surface-low);
+  border-left:1px solid rgba(85,94,107,.15);
+}
+.card-list.has-card-scroll::-webkit-scrollbar-thumb {
+  background:rgba(85,94,107,.55);
+  border:2px solid var(--surface-low);
+  border-radius:999px;
+}
+.card-list.has-card-scroll::-webkit-scrollbar-thumb:hover { background:rgba(85,94,107,.75); }
 .card-list li {
   background:#fff;
   border:2px solid #555e6b;

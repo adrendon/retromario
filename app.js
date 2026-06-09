@@ -121,6 +121,7 @@ function renderCategory(cat) {
   const list = document.querySelector(`.card-list[data-cat="${cat}"]`);
   if (!list) return;
   list.innerHTML = '';
+  list.classList.toggle('has-card-scroll', (cards[cat] || []).length > 4);
   cards[cat].forEach(card => {
     const li = document.createElement('li');
     li.dataset.id = card.id;
