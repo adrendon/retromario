@@ -183,7 +183,6 @@
         <span class="conn-dot" aria-hidden="true"></span>
         <span class="conn-text">Conectando…</span>
       </span>
-      <button id="admin-toggle-btn" type="button" class="w-10 h-10 rounded-full border-2 border-slate-gray bg-white flex items-center justify-center text-lg hover:bg-surface-low" title="Modo admin">🔑</button>
     </div>
   </div>
 
@@ -200,7 +199,7 @@
 <div class="bg-toad-blue text-white py-2 md:py-3 shadow-md border-b-2 border-slate-gray/20">
   <div class="max-w-[1280px] mx-auto px-4 md:px-12 flex items-center justify-between gap-4 md:gap-8">
     <div class="flex items-center gap-3 md:gap-4 min-w-0">
-      <button id="music-toggle-btn" type="button" aria-pressed="false" class="w-10 h-10 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-full transition-colors text-base">▶️</button>
+      <button id="music-toggle-btn" type="button" aria-pressed="false" aria-label="Reproducir música" title="Reproducir música" class="w-10 h-10 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-full transition-colors text-base">▶️</button>
       <div class="min-w-0">
         <p class="text-[10px] opacity-70 uppercase font-mono leading-none mb-1">Reproduciendo ahora</p>
         <p id="music-track-bar-name" class="text-xs font-bold truncate leading-none uppercase tracking-wider">Retro Kart Theme · 8-bit</p>
@@ -643,7 +642,7 @@
         </label>
         <div class="grid grid-cols-1 xl:grid-cols-2 gap-2">
           <button id="admin-board-toggle" class="bg-luigi-green text-white border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono shadow-retro-sm">🟢 Activar tablero</button>
-          <button id="admin-timer-pause" disabled class="bg-white border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono hover:bg-surface-low disabled:opacity-50">⏸️ Pausar</button>
+          <button id="admin-timer-pause" disabled aria-label="Pausar cronómetro" title="Pausar cronómetro" class="bg-white border-2 border-slate-gray rounded-lg px-3 py-2 text-lg font-mono hover:bg-surface-low disabled:opacity-50">⏸️</button>
           <button id="admin-timer-reset" class="bg-white border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono hover:bg-surface-low">🔄 Reset</button>
           <button id="admin-release" class="bg-mario-red text-white border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono shadow-retro-sm">🚪 Salir admin</button>
         </div>
