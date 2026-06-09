@@ -709,7 +709,7 @@ async function handleApi(req, res, url) {
     const clientId = normalizeClientId(body.clientId);
     const pilot = livePilots.get(clientId);
     if (!pilot) return send(res, 400, { error: 'Únete antes de elegir tu ánimo' });
-    if (!featureWritable(2)) return send(res, 409, { error: !stepActive(2) ? 'El admin debe activar este paso' : 'La retro está pausada o cerrada' });
+    if (!stepActive(2)) return send(res, 409, { error: 'El admin debe activar este paso' });
     const emoji = sanitize(body.emoji, 8);
     const label = sanitize(body.label, 32);
     if (!emoji) return send(res, 400, { error: 'Emoji requerido' });
