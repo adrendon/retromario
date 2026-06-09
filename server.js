@@ -428,13 +428,32 @@ function fullState() {
   };
 }
 
+function timerElapsedMs(now = Date.now()) {
+  if (!data.timer) return 0;
+  const paused = Number(data.timer.elapsedAtPause || 0);
+  if (!data.timer.running || !data.timer.startedAt) return paused;
+  return paused + (now - data.timer.startedAt);
+}
+
+function timerExpired(now = Date.now()) {
+  if (!data.timer || !data.timer.startedAt) return false;
+  return timerElapsedMs(now) >= Number(data.timer.durationSec || 0) * 1000;
+}
+
+function boardWritable() {
+  return !!data.boardActive && !timerExpired();
+}
+
 function timerPublic() {
+  const now = Date.now();
+  const expired = timerExpired(now);
   return {
     durationSec: data.timer.durationSec,
     startedAt: data.timer.startedAt,
     elapsedAtPause: data.timer.elapsedAtPause,
     running: data.timer.running,
-    serverNow: Date.now()
+    expired,
+    serverNow: now
   };
 }
 
@@ -549,6 +568,7 @@ async function handleApi(req, res, url) {
   if (req.method === 'POST' && parts.length === 2 && parts[1] === 'cards') {
     const body = await readBody(req);
     if (!data.boardActive) return send(res, 409, { error: 'El tablero no está activo' });
+    if (!boardWritable()) return send(res, 409, { error: 'El tiempo del tablero terminó' });
     const cat = String(body.cat || '');
     if (!CATEGORIES.includes(cat)) return send(res, 400, { error: 'Categoría inválida' });
     const text = sanitize(body.text, 200).trim();
@@ -592,6 +612,7 @@ async function handleApi(req, res, url) {
     const id  = parts[3];
     if (!CATEGORIES.includes(cat)) return send(res, 404, { error: 'Categoría' });
     if (!data.boardActive) return send(res, 409, { error: 'El tablero no está activo' });
+    if (!boardWritable()) return send(res, 409, { error: 'El tiempo del tablero terminó' });
     const body = await readBody(req);
     const cid = normalizeClientId(body.clientId || req.headers['x-client-id'] || '');
     const pilot = cid ? livePilots.get(cid) : null;
