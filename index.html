@@ -50,7 +50,7 @@
     <h2 id="admin-title">🔑 Modo admin</h2>
     <p class="modal-lead">Ingresa el PIN para tomar el control de la retro.</p>
     <form id="admin-form" class="join-form" autocomplete="off">
-      <label class="field"><span>PIN del admin</span><input type="password" id="admin-pin" maxlength="32" placeholder="password" required /></label>
+      <label class="field"><span>PIN del admin</span><div class="pin-input-wrap"><input type="password" id="admin-pin" maxlength="32" placeholder="password" required /><button type="button" class="pin-visibility-toggle" id="admin-pin-toggle" aria-label="Mostrar PIN" title="Mostrar PIN"><span class="material-symbols-outlined" aria-hidden="true">visibility</span></button></div></label>
       <div id="admin-modal-error" class="admin-modal-error" hidden></div>
       <div class="modal-actions" style="gap:8px; flex-wrap:wrap;">
         <button type="button" class="btn-mini" id="admin-cancel">Cancelar</button>
