@@ -45,6 +45,8 @@ const CHARACTERS = [
 ];
 
 const SERVER_MODE = location.protocol === 'http:' || location.protocol === 'https:';
+const ADMIN_ROUTE = /^\/admin\/?$/i.test(location.pathname) || location.hash === '#admin';
+document.body.classList.toggle('is-admin-route', ADMIN_ROUTE);
 
 /* ---------- Utilidades ---------- */
 function readJSON(key, fallback) {
@@ -2307,55 +2309,20 @@ function renderTimer() {
 //  handlers también recalculen la visibilidad de la pista.)
 
 /* ====================================================================
-   MODAL DE ADMIN (PIN + nombre + personaje) — sin alerts ni prompts
+   MODAL DE ADMIN (solo PIN) — sin alerts ni prompts
    ==================================================================== */
 const adminModal     = document.getElementById('admin-modal');
 const adminForm      = document.getElementById('admin-form');
 const adminPinInput  = document.getElementById('admin-pin');
-const adminNameInput = document.getElementById('admin-name');
-const adminCharGrid  = document.getElementById('admin-character-grid');
 const adminCancelBtn = document.getElementById('admin-cancel');
 const adminErrorBox  = document.getElementById('admin-modal-error');
 
-function buildAdminCharacterGrid(selected) {
-  if (!adminCharGrid) return;
-  adminCharGrid.innerHTML = '';
-  const fallback = selected || CHARACTERS[0].emoji;
-  CHARACTERS.forEach((ch, i) => {
-    const id = `admin-char-${i}`;
-    const label = document.createElement('label');
-    label.className = 'char-option';
-    label.title = ch.name;
-    const checked = ch.emoji === fallback ? 'checked' : '';
-    label.innerHTML = `
-      <input type="radio" name="admin-character" id="${id}" value="${ch.emoji}" ${checked} />
-      <span class="char-emoji" aria-hidden="true">${ch.emoji}</span>
-      <span class="char-name">${ch.name}</span>
-    `;
-    adminCharGrid.appendChild(label);
-  });
-}
 function openAdminModal() {
   if (!adminModal) return;
   if (adminErrorBox) { adminErrorBox.hidden = true; adminErrorBox.textContent = ''; }
 
-  const identityFields = document.getElementById('admin-identity-fields');
-  const pilotInfo      = document.getElementById('admin-pilot-info');
-  const pilotChar      = document.getElementById('admin-pilot-char');
-  const pilotName      = document.getElementById('admin-pilot-name');
-
-  if (currentPilot) {
-    // Ya tiene identidad: mostrar quién es y ocultar campos de nombre/personaje
-    if (identityFields) identityFields.hidden = true;
-    if (pilotInfo) pilotInfo.hidden = false;
-    if (pilotChar) pilotChar.textContent = currentPilot.character || '';
-    if (pilotName) pilotName.textContent = currentPilot.name || '';
-  } else {
-    // Sin piloto aún: mostrar los campos de identidad
-    if (identityFields) identityFields.hidden = false;
-    if (pilotInfo) pilotInfo.hidden = true;
-    buildAdminCharacterGrid(null);
-  }
+  // El acceso admin es un flujo solo de administrador: no pide nombre,
+  // personaje ni ningún dato de piloto/usuario final.
 
   if (adminPinInput) adminPinInput.value = '';
   adminModal.hidden = false;
@@ -2370,7 +2337,7 @@ function showAdminError(msg) {
 if (adminCancelBtn) adminCancelBtn.addEventListener('click', closeAdminModal);
 
 // Si la URL es /admin (o termina con #admin), restaura sesión admin o abre el modal.
-if (/^\/admin\/?$/i.test(location.pathname) || location.hash === '#admin') {
+if (ADMIN_ROUTE) {
   setTimeout(async () => {
     if (!clientId) await waitForClientId(2000);
     const restored = await restoreAdminSession();
@@ -2388,17 +2355,6 @@ if (adminForm) {
     }
     const pin = (adminPinInput.value || '').trim();
     if (!pin) { showAdminError('Escribe el PIN'); return; }
-
-    const name = (adminNameInput && adminNameInput.value || '').trim();
-    const checked = adminForm.querySelector('input[name="admin-character"]:checked');
-    const character = checked ? checked.value : (currentPilot ? currentPilot.character : '🍄');
-    if (name) {
-      currentPilot = { name, character };
-      writeJSON(PILOT_KEY, currentPilot);
-      document.body.classList.remove('no-pilot');
-      try { await registerPilot(currentPilot); } catch {}
-      renderPilots();
-    }
 
     try {
       const r = await adminFetch('/api/admin/claim', { pin });
@@ -2667,8 +2623,7 @@ refreshAdminUI = function () {
   }
 
   if (!currentPilot) {
-    // Si entró por /admin, salta el modal de piloto y abre directo el de admin.
-    const isAdminRoute = /^\/admin\/?$/i.test(location.pathname) || location.hash === '#admin';
-    if (!isAdminRoute) openJoinModal();
+    // Si entró por /admin, salta el modal de piloto; el flujo admin abre su propio modal.
+    if (!ADMIN_ROUTE) openJoinModal();
   }
 })();

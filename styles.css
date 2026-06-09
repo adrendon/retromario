@@ -20,6 +20,14 @@
   --shadow-sm: 2px 2px 0 0 #555e6b;
 }
 
+
+/* ---------- Ruta admin: sin elementos de participante ---------- */
+body.is-admin-route #music-bar,
+body.is-admin-route .hero-participant-actions,
+body.is-admin-route #participant-dashboard {
+  display: none !important;
+}
+
 /* ---------- Pasos: locks y estado admin-only ---------- */
 .step { position: relative; }
 .step.is-locked .step-content,
