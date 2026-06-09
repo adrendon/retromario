@@ -201,6 +201,27 @@ test('Cronómetro: start/pause/reset por admin', async () => {
   assert.strictEqual(r.body.startedAt, 0);
 });
 
+
+test('Admin puede guardar objetivo sin perder pasos', async () => {
+  const cid = 'admin-objective-11223344';
+  await openStreamHello(cid);
+  await request('POST', '/api/admin/claim', { clientId: cid, pin: 'sitioBanco' });
+  await request('POST', '/api/steps', { clientId: cid, steps: [0, 1] });
+
+  const r = await request('POST', '/api/objective', { clientId: cid, text: 'Mejorar foco del sprint' });
+  assert.strictEqual(r.status, 200);
+  assert.strictEqual(r.body.text, 'Mejorar foco del sprint');
+
+  const state = await request('GET', '/api/state');
+  assert.deepStrictEqual(state.body.steps, [0, 1]);
+  assert.strictEqual(state.body.objective, 'Mejorar foco del sprint');
+});
+
+test('POST /api/objective rechaza sin credenciales admin', async () => {
+  const r = await request('POST', '/api/objective', { text: 'no autorizado' });
+  assert.strictEqual(r.status, 403);
+});
+
 test('POST /api/cards rechaza cuando terminó el tiempo del tablero', async () => {
   const adminCid = 'admin-expired-aabb1100';
   const pilotCid = 'pilot-expired-ccdd2200';

@@ -1086,19 +1086,25 @@ if (objectiveText) {
 if (objectiveSave) {
   objectiveSave.addEventListener('click', async () => {
     const text = (objectiveText.value || '').trim();
-    objective = text;
-    objectiveDirty = false;
+    if (SERVER_MODE && !isAdmin) {
+      toast('Solo el admin puede guardar el objetivo', 'warn');
+      return;
+    }
     if (SERVER_MODE) {
       try {
-        await fetch('/api/objective', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ text })
-        });
+        const r = await adminFetch('/api/objective', { text });
+        const out = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(out.error || 'objective');
+        objective = typeof out.text === 'string' ? out.text : text;
+        objectiveDirty = false;
+        renderObjective();
         flashObjective('Guardado ✓');
       } catch { toast('No pude guardar el objetivo', 'warn'); }
     } else {
+      objective = text;
+      objectiveDirty = false;
       writeJSON('mario-kart-retro-objective-v1', text);
+      renderObjective();
       flashObjective('Guardado ✓ (local)');
     }
   });
@@ -2052,7 +2058,6 @@ function updateRaceVisibility() {
 /* ---------- Admin ---------- */
 let isAdmin = false;
 let adminTaken = false;
-const adminToggleBtn   = document.getElementById('admin-toggle-btn');
 const adminPanelEl     = document.getElementById('admin-panel');
 const adminSprintInput = document.getElementById('admin-sprint');
 const adminSprintSave  = document.getElementById('admin-sprint-save');
@@ -2065,10 +2070,6 @@ const adminReleaseBtn  = document.getElementById('admin-release');
 function refreshAdminUI() {
   document.body.classList.toggle('is-admin', !!isAdmin);
   if (typeof renderActions === 'function') renderActions();
-  if (adminToggleBtn) {
-    // Visible cuando no eres admin (para pedir PIN). Oculto cuando ya entraste.
-    adminToggleBtn.hidden = !!isAdmin;
-  }
   if (adminPanelEl) adminPanelEl.hidden = !isAdmin;
   document.querySelectorAll('.admin-only').forEach(el => { el.hidden = !isAdmin; });
   if (adminBoardToggle) {
@@ -2121,13 +2122,6 @@ async function restoreAdminSession() {
   } catch { return false; }
 }
 
-if (adminToggleBtn) {
-  adminToggleBtn.addEventListener('click', () => {
-    if (!SERVER_MODE) { toast('El modo admin requiere el servidor', 'warn'); return; }
-    if (adminTaken && !isAdmin) { toast('Ya hay un admin activo', 'warn'); return; }
-    openAdminModal();
-  });
-}
 if (adminReleaseBtn) {
   adminReleaseBtn.addEventListener('click', async () => {
     if (!SERVER_MODE || !clientId) return;
