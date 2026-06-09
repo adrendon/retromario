@@ -369,9 +369,43 @@ function renderPilots() {
   if (typeof renderLanes === 'function') renderLanes();
 }
 
+function isStepActive(index) {
+  return !!(checks && checks[index] && checks[index].checked);
+}
+
+function timerHasStarted() {
+  return !!(timerState && (timerState.startedAt || timerState.elapsedAtPause));
+}
+
+function isBoardPaused() {
+  return !!(boardActive && timerHasStarted() && !timerState.running && !boardEnded);
+}
+
+function canInteractWithBoard() {
+  return !!(boardActive && !boardEnded && (!timerHasStarted() || timerState.running));
+}
+
+function updateFeatureAvailability() {
+  const moodActive = isStepActive(2);
+  const actionsActive = isStepActive(10);
+  document.querySelectorAll('[data-opens="mood-modal"]').forEach(btn => {
+    btn.disabled = !isAdmin && !moodActive;
+    btn.classList.toggle('is-feature-locked', !isAdmin && !moodActive);
+    btn.title = !isAdmin && !moodActive ? 'El admin debe activar este paso primero' : '';
+  });
+  document.querySelectorAll('[data-opens="actions-modal"]').forEach(btn => {
+    btn.disabled = !isAdmin && !actionsActive;
+    btn.classList.toggle('is-feature-locked', !isAdmin && !actionsActive);
+    btn.title = !isAdmin && !actionsActive ? 'El admin debe activar este paso primero' : '';
+  });
+  document.body.classList.toggle('mood-step-active', moodActive);
+  document.body.classList.toggle('actions-step-active', actionsActive);
+  document.body.classList.toggle('board-paused', isBoardPaused());
+}
+
 function updateFormsEnabled() {
   const has = !!currentPilot;
-  const writable = has && boardActive && !boardEnded;
+  const writable = has && canInteractWithBoard();
   document.querySelectorAll('.add-form').forEach(f => {
     const input = f.querySelector('input[type=text]');
     const btn   = f.querySelector('button[type=submit]');
@@ -382,7 +416,8 @@ function updateFormsEnabled() {
         ? '🔒 Únete primero para escribir…'
         : (!boardActive ? '⏳ El tablero aún no está activo…'
           : (boardEnded ? '🏁 El tablero queda cerrado…'
-            : (input.dataset.basePlaceholder || input.placeholder)));
+            : (isBoardPaused() ? '⏸️ Pausado por admin…'
+              : (input.dataset.basePlaceholder || input.placeholder))));
     }
   });
 }
@@ -751,6 +786,7 @@ function applyStepsFromServer(list) {
   checks.forEach((c, i) => { c.checked = set.has(i); });
   updateProgress();
   updateStepLocks();
+  if (typeof updateFeatureAvailability === 'function') updateFeatureAvailability();
 }
 
 function updateStepLocks() {
@@ -792,6 +828,12 @@ function advanceStepsCarousel(index) {
 
 checks.forEach((c, i) => {
   c.addEventListener('change', async () => {
+    if (!isAdmin) {
+      c.checked = !c.checked;
+      updateStepLocks();
+      toast('Solo el admin activa los pasos', 'warn');
+      return;
+    }
     if (c.checked) {
       for (let j = 0; j < i; j++) {
         if (!checks[j].checked) {
@@ -977,8 +1019,11 @@ function renderRace() {
 
     const kart = document.createElement('div');
     kart.className = 'race-kart';
-    if (s.finished && idx === 0) kart.classList.add('is-winner');
-    const pct = Math.max(2, Math.min(95, (s.columns / target) * 92 + 2));
+    const actuallyFinished = !!(s.finished && Number(s.columns || 0) >= target);
+    if (actuallyFinished && idx === 0) kart.classList.add('is-winner');
+    if (!actuallyFinished && Number(s.columns || 0) > 0) kart.classList.add('is-running');
+    const rawPct = (Number(s.columns || 0) / target) * 100;
+    const pct = actuallyFinished ? 95 : Math.max(2, Math.min(82, rawPct * 0.8 + 2));
     kart.style.left = pct + '%';
 
     const isMe = currentPilot && s.name.toLowerCase() === currentPilot.name.toLowerCase();
@@ -991,6 +1036,8 @@ function renderRace() {
     kart.innerHTML = `
       <span class="emoji">${s.character}</span>
       <span class="race-kart-name">${escapeText(s.name)}</span>
+      ${actuallyFinished ? '<span class="race-finish" aria-hidden="true">🏁</span>' : '<span class="race-fire" aria-hidden="true">🔥</span>'}
+      <span class="race-progress">${Math.min(target, Number(s.columns || 0))}/${target}</span>
     `;
     lane.appendChild(kart);
     raceLanes.appendChild(lane);
@@ -1002,23 +1049,24 @@ function renderRace() {
 
   // Podio: sólo aparece cuando ya están definidos 1º, 2º y 3º por llegada real.
   if (raceResults && podiumStage) {
-    const finishers = (raceState.finishers && raceState.finishers.length)
+    const sourceFinishers = (raceState.finishers && raceState.finishers.length)
       ? raceState.finishers
       : standings.filter(s => s.finished);
-    if (finishers.length < 3) {
+    const finishers = sourceFinishers.filter(s => s && s.finished && Number(s.columns || 0) >= target);
+    if (!finishers.length) {
       raceResults.hidden = true;
       return;
     }
     raceResults.hidden = false;
 
-    // Top 3 por orden de llegada real; no se muestran pilotos que aún no terminaron.
+    // Top 3 por orden de llegada real; los puestos 2º/3º quedan vacíos hasta que crucen meta.
     const top3 = finishers.slice(0, 3);
     const medals = ['🥇','🥈','🥉'];
     for (let i = 0; i < 3; i++) {
       const spot = document.getElementById('podium-' + (i + 1));
       if (!spot) continue;
       const s = top3[i];
-      if (!s) { spot.innerHTML = '<div class="podium-empty">—</div>'; continue; }
+      if (!s) { spot.innerHTML = '<div class="podium-empty">En carrera</div>'; continue; }
       spot.innerHTML = `
         <div class="podium-medal">${medals[i]}</div>
         <div class="podium-emoji">${s.character}</div>
@@ -1027,7 +1075,8 @@ function renderRace() {
     }
 
     // Resto fuera del podio (los "llorando afuera")
-    const losers = standings.filter(s => !s.finished).concat(finishers.slice(3));
+    const finishedKeys = new Set(finishers.map(s => String(s.name || '').toLowerCase()));
+    const losers = standings.filter(s => !finishedKeys.has(String(s.name || '').toLowerCase())).concat(finishers.slice(3));
     if (!losers.length) {
       podiumLosersWrap.hidden = true;
       losersList.innerHTML = '';
@@ -1208,7 +1257,9 @@ function buildMoodGrid(selected) {
   });
 }
 function openMoodModal() {
+  if (!isAdmin && !isStepActive(2)) { toast('El admin debe activar “¿Cómo llegas hoy?” primero 🔒', 'warn'); return; }
   if (!currentPilot) { openJoinModal(); toast('Únete antes de elegir tu ánimo 🏎️', 'warn'); return; }
+  if (!canInteractWithBoard()) { toast(isBoardPaused() ? 'La retro está pausada por admin ⏸️' : 'Aún no está activo', 'warn'); return; }
   const mine = myMood();
   buildMoodGrid(mine ? mine.emoji : MOODS[0].emoji);
   moodModal.hidden = false;
@@ -1221,6 +1272,8 @@ if (moodModal) moodModal.addEventListener('click', e => { if (e.target === moodM
 if (moodForm) {
   moodForm.addEventListener('submit', async e => {
     e.preventDefault();
+    if (!isAdmin && !isStepActive(2)) { toast('El admin debe activar este paso primero 🔒', 'warn'); return; }
+    if (!canInteractWithBoard()) { toast(isBoardPaused() ? 'La retro está pausada por admin ⏸️' : 'Aún no está activo', 'warn'); return; }
     const checked = moodForm.querySelector('input[name="mood"]:checked');
     if (!checked) return;
     const emoji = checked.value;
@@ -1316,6 +1369,8 @@ const actionsClearBtn = document.getElementById('actions-clear');
 
 function openActionsModal() {
   if (!actionsModal) return;
+  if (!isAdmin && !isStepActive(10)) { toast('El admin debe activar “acciones propuestas” primero 🔒', 'warn'); return; }
+  if (!isAdmin && !canInteractWithBoard()) { toast(isBoardPaused() ? 'La retro está pausada por admin ⏸️' : 'Aún no está activo', 'warn'); return; }
   renderActions();
   actionsModal.hidden = false;
   if (isAdmin) setTimeout(() => actionInput && actionInput.focus(), 50);
@@ -1325,6 +1380,7 @@ function renderActions() {
   if (!actionsList) return;
   actionsList.innerHTML = '';
   if (actionsCount) actionsCount.textContent = String(actions.length);
+  const votingEnabled = isAdmin || (isStepActive(10) && canInteractWithBoard());
 
   // Sort by vote count desc, then by ts asc
   const sorted = actions.slice().sort((a, b) => (b.voteCount || 0) - (a.voteCount || 0) || a.ts - b.ts);
@@ -1332,7 +1388,7 @@ function renderActions() {
   if (!sorted.length) {
     const li = document.createElement('li');
     li.className = 'actions-empty';
-    li.textContent = 'Aún no hay acciones para votar.';
+    li.textContent = votingEnabled ? 'Aún no hay acciones para votar.' : 'El admin activará estas acciones cuando llegue el paso.';
     actionsList.appendChild(li);
   } else {
     sorted.forEach((a, idx) => {
@@ -1352,7 +1408,7 @@ function renderActions() {
           ${escapeText(a.text)}
           <small>${a.character || ''} ${escapeText(a.author || 'Anónimo')}</small>
         </span>
-        <button class="action-vote-btn ${voted ? 'is-voted' : ''}" data-id="${a.id}" type="button">
+        <button class="action-vote-btn ${voted ? 'is-voted' : ''}" data-id="${a.id}" type="button" ${votingEnabled ? '' : 'disabled'} title="${votingEnabled ? '' : 'Bloqueado hasta que el admin active el paso'}">
           ${voted ? '✅' : '👍'} <span>${a.voteCount || 0}</span>
         </button>
         ${canRemove ? `<button class="action-remove" data-id="${a.id}" type="button" title="Eliminar mi propuesta">✕</button>` : ''}
@@ -1364,6 +1420,7 @@ function renderActions() {
   if (actionsBoardList) {
     actionsBoardList.innerHTML = actionsList.innerHTML;
     actionsBoardList.classList.toggle('has-actions', actions.length > 0);
+    actionsBoardList.classList.toggle('is-feature-locked', !votingEnabled);
   }
 
   if (actionInput) {
@@ -1413,6 +1470,9 @@ async function handleActionVoteClick(e) {
     const voteBtn = e.target.closest('.action-vote-btn');
     const rmBtn   = e.target.closest('.action-remove');
     if (voteBtn) {
+      if (voteBtn.disabled) return;
+      if (!isStepActive(10)) { toast('El admin debe activar las acciones primero 🔒', 'warn'); return; }
+      if (!canInteractWithBoard()) { toast(isBoardPaused() ? 'La retro está pausada por admin ⏸️' : 'Aún no está activo', 'warn'); return; }
       if (!currentPilot) { openJoinModal(); toast('Únete antes de votar 🏎️', 'warn'); return; }
       const id = voteBtn.dataset.id;
       if (SERVER_MODE) {
@@ -2095,6 +2155,7 @@ function applySprint(s) {
   if (adminSprintInput && document.activeElement !== adminSprintInput) {
     adminSprintInput.value = currentSprint;
   }
+  updateFeatureAvailability();
 }
 
 /* ---------- Tablero activo / bloqueado ---------- */
@@ -2123,6 +2184,7 @@ function applyBoardActive(active) {
     adminBoardToggle.classList.toggle('bg-luigi-green', !boardActive);
   }
   updateFormsEnabled();
+  updateFeatureAvailability();
   updateRaceVisibility();
 }
 
@@ -2246,6 +2308,7 @@ function setBoardEnded(ended, { showModal = true } = {}) {
   boardEnded = next;
   document.body.classList.toggle('board-ended', boardEnded);
   updateFormsEnabled();
+  updateFeatureAvailability();
   if (boardEnded && showModal && boardEndedModal && !boardEndedModalShown) {
     boardEndedModalShown = true;
     boardEndedModal.hidden = false;
@@ -2348,6 +2411,8 @@ function applyTimerState(t) {
     adminTimerPause.disabled = !(timerState.startedAt || timerState.elapsedAtPause);
   }
   if (adminTimerSelect) adminTimerSelect.value = String(timerState.durationSec);
+  updateFormsEnabled();
+  updateFeatureAvailability();
   startTimerTick();
   renderTimer();
 }

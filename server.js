@@ -355,8 +355,14 @@ function createAdminSession(clientId) {
 
 function validateAdminSession(clientId, token) {
   pruneAdminSessions();
-  const session = adminSessions.get(sanitize(token, 128));
-  return !!(session && session.clientId === clientId);
+  const cleanToken = sanitize(token, 128);
+  const session = adminSessions.get(cleanToken);
+  if (!session) return false;
+  // La sesión se ata al token, no al clientId efímero de SSE, para sobrevivir
+  // recargas móviles o navegadores que pierden sessionStorage. Al restaurar,
+  // el token rota su clientId activo hacia la conexión actual.
+  if (clientId && session.clientId !== clientId) session.clientId = clientId;
+  return true;
 }
 
 function revokeAdminSessions(clientId) {
@@ -440,8 +446,20 @@ function timerExpired(now = Date.now()) {
   return timerElapsedMs(now) >= Number(data.timer.durationSec || 0) * 1000;
 }
 
+function timerRunningOrNotStarted() {
+  return !data.timer || !data.timer.startedAt || !!data.timer.running;
+}
+
 function boardWritable() {
-  return !!data.boardActive && !timerExpired();
+  return !!data.boardActive && timerRunningOrNotStarted() && !timerExpired();
+}
+
+function stepActive(index) {
+  return Array.isArray(data.steps) && data.steps.includes(index);
+}
+
+function featureWritable(index) {
+  return boardWritable() && stepActive(index);
 }
 
 function timerPublic() {
@@ -467,10 +485,10 @@ function requireAdmin(req, body) {
   const token = sanitize((body && body.adminToken) || req.headers['x-admin-token'] || '', 128);
   if (!cid) return false;
   if (cid === adminClientId) return true;
-  if (validateAdminSession(cid, token) && (!adminClientId || adminClientId === cid)) {
-    const wasTaken = !!adminClientId;
+  if (validateAdminSession(cid, token) && (!adminClientId || adminClientId === cid || !clients.has(adminClientId))) {
+    const changed = adminClientId !== cid;
     adminClientId = cid;
-    if (!wasTaken) {
+    if (changed) {
       logEvent('admin_restored', { auto: true });
       broadcastAdmin();
     }
@@ -612,6 +630,7 @@ async function handleApi(req, res, url) {
     const id  = parts[3];
     if (!CATEGORIES.includes(cat)) return send(res, 404, { error: 'Categoría' });
     if (!data.boardActive) return send(res, 409, { error: 'El tablero no está activo' });
+    if (!boardWritable()) return send(res, 409, { error: data.timer && data.timer.running === false ? 'La retro está pausada por admin' : 'El tablero queda cerrado' });
     const body = await readBody(req);
     const cid = normalizeClientId(body.clientId || req.headers['x-client-id'] || '');
     const pilot = cid ? livePilots.get(cid) : null;
@@ -690,6 +709,7 @@ async function handleApi(req, res, url) {
     const clientId = normalizeClientId(body.clientId);
     const pilot = livePilots.get(clientId);
     if (!pilot) return send(res, 400, { error: 'Únete antes de elegir tu ánimo' });
+    if (!featureWritable(2)) return send(res, 409, { error: !stepActive(2) ? 'El admin debe activar este paso' : 'La retro está pausada o cerrada' });
     const emoji = sanitize(body.emoji, 8);
     const label = sanitize(body.label, 32);
     if (!emoji) return send(res, 400, { error: 'Emoji requerido' });
@@ -759,6 +779,7 @@ async function handleApi(req, res, url) {
     const clientId = normalizeClientId(body.clientId);
     const pilot = livePilots.get(clientId);
     if (!pilot) return send(res, 400, { error: 'Únete antes de votar' });
+    if (!featureWritable(10)) return send(res, 409, { error: !stepActive(10) ? 'El admin debe activar las acciones' : 'La retro está pausada o cerrada' });
     const action = data.actions.find(a => a.id === id);
     if (!action) return send(res, 404, { error: 'Acción no encontrada' });
     if (!action.votes) action.votes = {};
@@ -799,7 +820,7 @@ async function handleApi(req, res, url) {
     const token = sanitize(body.adminToken, 128);
     if (!clientId) return send(res, 400, { error: 'clientId requerido' });
     if (!validateAdminSession(clientId, token)) return send(res, 403, { error: 'Sesión admin expirada' });
-    if (adminClientId && adminClientId !== clientId) {
+    if (adminClientId && adminClientId !== clientId && clients.has(adminClientId)) {
       return send(res, 409, { error: 'Ya hay un admin activo' });
     }
     adminClientId = clientId;
@@ -885,7 +906,7 @@ const server = http.createServer(async (req, res) => {
     const url = new URL(req.url, `http://${req.headers.host}`);
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET,POST,DELETE,OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Client-Id');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Client-Id, X-Admin-Token');
     if (req.method === 'OPTIONS') { res.writeHead(204); return res.end(); }
 
     if (url.pathname.startsWith('/api/')) return handleApi(req, res, url);
