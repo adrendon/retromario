@@ -303,7 +303,9 @@ function wirePilotTooltip(a) {
 
 function makePilotAvatar(p, idx, opts) {
   const a = document.createElement('span');
+  const tooltipPosition = opts && opts.tooltipPosition;
   a.className = 'pilot-chip-avatar';
+  if (tooltipPosition) a.classList.add(`is-tooltip-${tooltipPosition}`);
   if (currentPilot && p.name.toLowerCase() === currentPilot.name.toLowerCase()) {
     a.classList.add('is-current');
   }
@@ -336,11 +338,16 @@ function renderPilotList(targetId, countId, maxVisible) {
     return;
   }
   const limit = maxVisible || 4;
-  pilots.slice(0, limit).forEach((p, idx) => list.appendChild(makePilotAvatar(p, idx)));
-  if (pilots.length > limit) {
+  const visiblePilots = pilots.slice(0, limit);
+  const hasExtra = pilots.length > limit;
+  visiblePilots.forEach((p, idx) => {
+    const tooltipPosition = idx === 0 ? 'start' : (!hasExtra && idx === visiblePilots.length - 1 ? 'end' : 'center');
+    list.appendChild(makePilotAvatar(p, idx, { tooltipPosition }));
+  });
+  if (hasExtra) {
     const extra = document.createElement('span');
     const extraLabel = pilots.slice(limit).map(p => `${p.character} ${p.name}`).join(' · ');
-    extra.className = 'pilot-chip-avatar pilot-chip-extra';
+    extra.className = 'pilot-chip-avatar pilot-chip-extra is-tooltip-end';
     extra.textContent = '+' + (pilots.length - limit);
     extra.title = extraLabel;
     extra.setAttribute('aria-label', extraLabel);
