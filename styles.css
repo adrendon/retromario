@@ -23,11 +23,11 @@
 
 /* ---------- Scrollbars retro: visibles y coherentes en toda la app ---------- */
 :root {
-  --scroll-track:#e2e8f0;
-  --scroll-track-alt:#f8fafc;
-  --scroll-thumb:#facc15;
+  --scroll-track:#cbd5e1;
+  --scroll-track-alt:#f1f5f9;
+  --scroll-thumb:#555e6b;
   --scroll-thumb-hover:#e60012;
-  --scroll-corner:#f0f4f8;
+  --scroll-corner:#e2e8f0;
 }
 
 html {
@@ -35,33 +35,24 @@ html {
   scrollbar-width:auto;
 }
 
-* {
-  scrollbar-color:var(--scroll-thumb) var(--scroll-track);
-}
-
 ::-webkit-scrollbar {
-  width:14px;
-  height:14px;
+  width:10px;
+  height:10px;
 }
 
 ::-webkit-scrollbar-track {
-  background:
-    linear-gradient(45deg, rgba(85,94,107,.10) 25%, transparent 25% 50%, rgba(85,94,107,.10) 50% 75%, transparent 75%),
-    var(--scroll-track);
-  background-size:8px 8px;
-  border:2px solid #fff;
+  background:var(--scroll-track);
   border-radius:999px;
 }
 
 ::-webkit-scrollbar-thumb {
-  background:linear-gradient(180deg, #fde047, var(--scroll-thumb));
-  border:3px solid var(--scroll-track-alt);
+  background:var(--scroll-thumb);
+  border:2px solid var(--scroll-track);
   border-radius:999px;
-  box-shadow:inset 0 0 0 1px rgba(29,41,57,.35);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background:linear-gradient(180deg, #ef4444, var(--scroll-thumb-hover));
+  background:var(--scroll-thumb-hover);
 }
 
 ::-webkit-scrollbar-corner { background:var(--scroll-corner); }
@@ -70,7 +61,6 @@ html {
 .music-track-list,
 .card-list,
 .retro-carousel {
-  scrollbar-color:var(--scroll-thumb) var(--scroll-track);
   scrollbar-width:thin;
 }
 
@@ -81,18 +71,12 @@ html {
   scrollbar-gutter:stable;
 }
 
-.retro-carousel::-webkit-scrollbar { height:12px; }
-.retro-carousel::-webkit-scrollbar-track {
-  border-color:var(--surface);
-}
-.retro-carousel::-webkit-scrollbar-thumb {
-  border-width:2px;
-}
+.retro-carousel::-webkit-scrollbar { height:8px; }
 
 .card-list::-webkit-scrollbar,
 .modal::-webkit-scrollbar,
 .music-track-list::-webkit-scrollbar {
-  width:12px;
+  width:8px;
 }
 
 
