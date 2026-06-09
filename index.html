@@ -115,7 +115,7 @@
   <div class="modal" style="max-width:560px">
     <span class="modal-confetti" aria-hidden="true">🏆</span>
     <h2 id="actions-title">🏆 Acciones del próximo sprint</h2>
-    <p class="modal-lead">El admin crea hasta <strong>5 acciones</strong>; todos los pilotos pueden votar cuando estén listas.</p>
+    <p class="modal-lead">Crea hasta <strong>5 acciones</strong> y deja que el equipo vote las más importantes.</p>
     <div class="actions-panel" id="actions-panel">
       <form class="actions-form admin-only" id="actions-form" autocomplete="off" hidden>
         <input id="action-input" type="text" maxlength="240" placeholder="Escribe una acción para el próximo sprint…" />
@@ -239,6 +239,16 @@
 
     <!-- COLUMNA IZQ -->
     <div class="lg:w-3/4 space-y-12 md:space-y-20 min-w-0">
+
+      <section id="objective-panel" class="bg-surface-low border-2 border-slate-gray rounded-2xl p-5 shadow-retro-sm">
+        <div class="flex items-center gap-2 mb-3">
+          <span class="material-symbols-outlined text-toad-blue">target</span>
+          <h3 class="font-display font-bold text-base">Objetivo</h3>
+        </div>
+        <p id="objective-display" class="text-sm italic text-slate-gray px-3 py-2 border-l-2 border-toad-blue min-h-[40px]">
+          Aún no se ha definido un objetivo.
+        </p>
+      </section>
 
       <!-- Panel para participantes -->
       <section id="participant-dashboard" class="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
@@ -571,8 +581,8 @@
           </div>
           <div class="race-status" id="race-status" aria-live="polite" hidden><span class="status-msg" id="race-msg"></span></div>
 
-          <div class="race-results" id="race-results" hidden>
-            <h3 class="font-mono text-xs uppercase text-slate-gray mb-2 text-center">🏆 Podio</h3>
+          <div class="race-results bg-white border-2 border-slate-gray rounded-2xl p-4 shadow-retro-sm" id="race-results" hidden>
+            <h3 class="font-mono text-xs uppercase text-slate-gray mb-2 text-center">🏆 Podio final</h3>
             <div class="podium-stage flex items-end justify-center gap-2 h-36" id="podium-stage">
               <div class="podium-spot podium-silver flex flex-col items-center flex-1" data-place="2">
                 <div class="podium-pilot text-xs font-bold mb-1 text-center min-h-[32px] flex flex-col items-center justify-end" id="podium-2"></div>
@@ -595,16 +605,6 @@
         </div>
       </section>
 
-      <section id="objective-panel" class="bg-surface-low border-2 border-slate-gray rounded-2xl p-5 shadow-retro-sm">
-        <div class="flex items-center gap-2 mb-3">
-          <span class="material-symbols-outlined text-toad-blue">target</span>
-          <h3 class="font-display font-bold text-base">Objetivo</h3>
-        </div>
-        <p id="objective-display" class="text-sm italic text-slate-gray px-3 py-2 border-l-2 border-toad-blue min-h-[40px]">
-          Aún no se ha definido un objetivo.
-        </p>
-      </section>
-
       <section id="admin-panel" hidden class="bg-white border-2 border-slate-gray rounded-2xl p-5 shadow-retro-sm space-y-4">
         <div class="flex items-center justify-between gap-3">
           <div>
@@ -618,10 +618,19 @@
         </label>
         <div class="grid grid-cols-1 xl:grid-cols-2 gap-2">
           <button id="admin-sprint-save" class="bg-white border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono hover:bg-surface-low">💾 Guardar sprint</button>
-          <button type="button" class="bg-white border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono hover:bg-surface-low" data-opens="objective-modal">🎯 Editar objetivo</button>
           <button id="export-btn" class="admin-only bg-white border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono hover:bg-surface-low" hidden>📊 Exportar</button>
           <button id="clear-btn" class="admin-only bg-white text-mario-red border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono hover:bg-mario-red/10" hidden>🗑️ Borrar</button>
         </div>
+        <section id="admin-moods-panel" class="admin-only bg-surface-low border-2 border-slate-gray rounded-xl p-3" hidden>
+          <div class="flex items-center gap-2 mb-2">
+            <span class="text-lg" aria-hidden="true">🎮</span>
+            <div>
+              <p class="font-mono text-[10px] text-slate-gray uppercase">Estados de ánimo</p>
+              <h4 class="font-display font-bold text-sm">Todo el equipo</h4>
+            </div>
+          </div>
+          <div class="moods-wall" id="admin-moods-wall" aria-live="polite"></div>
+        </section>
         <label class="flex flex-col gap-1">
           <span class="font-mono text-[10px] text-slate-gray uppercase">Duración del tablero</span>
           <select id="admin-timer-duration" class="border-2 border-slate-gray rounded-lg px-3 py-2 text-sm bg-white">

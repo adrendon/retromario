@@ -585,3 +585,110 @@ header .md\:hidden {
     padding-right:10px;
   }
 }
+
+/* ---------- Ajustes de visibilidad admin y hover ---------- */
+body.is-admin-route #mini-race {
+  display:block !important;
+  position:static !important;
+}
+body.is-admin-route #objective-panel,
+body.is-admin #objective-panel {
+  display:none !important;
+}
+.bg-mario-red:hover,
+.hover\:bg-mario-red\/10:hover { color:#fff !important; }
+.bg-luigi-green:hover { background:var(--luigi) !important; color:#fff !important; }
+.bg-toad-blue:hover { background:var(--toad) !important; color:#fff !important; }
+.bg-peach-pink:hover { background:var(--peach) !important; color:#fff !important; }
+.bg-star-gold:hover { background:var(--star) !important; color:#1d2939 !important; }
+.btn-primary:hover,
+.btn-danger:hover,
+#admin-release:hover,
+#admin-board-toggle:hover,
+.send-card-btn:hover {
+  color:#fff !important;
+}
+
+/* ---------- Pista animada y llegada ---------- */
+body.board-active #race-track,
+#mini-race:not([hidden]) #race-track {
+  animation: track-scroll 1.1s linear infinite;
+}
+@keyframes track-scroll {
+  from { background-position:0 0; }
+  to { background-position:-40px 0; }
+}
+#race-track::before {
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,.08), transparent);
+  animation: speed-lines .75s linear infinite;
+}
+@keyframes speed-lines {
+  from { transform:translateX(-100%); }
+  to { transform:translateX(100%); }
+}
+.race-kart {
+  animation:kart-bob .35s ease-in-out infinite alternate;
+  will-change:left, transform;
+}
+.race-kart.is-winner {
+  animation:kart-bob .35s ease-in-out infinite alternate, winner-glow .9s ease-in-out infinite;
+}
+@keyframes kart-bob {
+  from { transform:translateY(0) rotate(-1deg); }
+  to { transform:translateY(-2px) rotate(1deg); }
+}
+@keyframes winner-glow {
+  0%, 100% { box-shadow:0 0 0 0 rgba(250,204,21,.65); }
+  50% { box-shadow:0 0 0 6px rgba(250,204,21,0); }
+}
+.race-results:not([hidden]) {
+  animation:podium-card-in .45s cubic-bezier(.2,.8,.2,1) both;
+}
+.podium-spot {
+  transform-origin:bottom center;
+  animation:podium-pop .55s cubic-bezier(.2,.8,.2,1) both;
+}
+.podium-spot[data-place="1"] { animation-delay:.1s; }
+.podium-spot[data-place="2"] { animation-delay:.2s; }
+.podium-spot[data-place="3"] { animation-delay:.3s; }
+.podium-medal { animation:medal-spin 1.4s ease-in-out infinite; }
+.losers-list .loser-item {
+  animation:loser-wobble .8s ease-in-out both;
+}
+@keyframes podium-card-in {
+  from { opacity:0; transform:translateY(12px) scale(.98); }
+  to { opacity:1; transform:translateY(0) scale(1); }
+}
+@keyframes podium-pop {
+  from { opacity:0; transform:translateY(18px) scale(.9); }
+  to { opacity:1; transform:translateY(0) scale(1); }
+}
+@keyframes medal-spin {
+  0%, 100% { transform:translateY(0) rotate(0deg); }
+  50% { transform:translateY(-3px) rotate(8deg); }
+}
+@keyframes loser-wobble {
+  0% { opacity:0; transform:translateX(10px) rotate(2deg); }
+  60% { opacity:1; transform:translateX(-2px) rotate(-1deg); }
+  100% { opacity:1; transform:translateX(0) rotate(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.board-active #race-track,
+  #mini-race:not([hidden]) #race-track,
+  #race-track::before,
+  .race-kart,
+  .race-kart.is-winner,
+  .race-results:not([hidden]),
+  .podium-spot,
+  .podium-medal,
+  .losers-list .loser-item {
+    animation:none !important;
+  }
+}
+body.is-admin-route #mini-race[hidden] { display:none !important; }
+body.is-admin-route #mini-race:not([hidden]) { display:block !important; }
