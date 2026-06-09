@@ -49,18 +49,8 @@
     <span class="modal-confetti" aria-hidden="true">👑</span>
     <h2 id="admin-title">🔑 Modo admin</h2>
     <p class="modal-lead">Ingresa el PIN para tomar el control de la retro.</p>
-    <!-- Identidad actual (visible cuando ya hay piloto registrado) -->
-    <div id="admin-pilot-info" hidden class="flex items-center gap-3 mb-4 bg-surface-low border-2 border-slate-gray/20 rounded-xl px-4 py-3">
-      <span id="admin-pilot-char" class="text-2xl"></span>
-      <span id="admin-pilot-name" class="font-bold text-sm"></span>
-    </div>
     <form id="admin-form" class="join-form" autocomplete="off">
       <label class="field"><span>PIN del admin</span><input type="password" id="admin-pin" maxlength="32" placeholder="password" required /></label>
-      <!-- Nombre y personaje solo se muestran si aún no hay piloto registrado -->
-      <div id="admin-identity-fields">
-        <label class="field"><span>Tu nombre</span><input type="text" id="admin-name" maxlength="24" placeholder="Ej. Ana, Carlos…" /></label>
-        <fieldset class="character-picker"><legend>Elige tu personaje</legend><div class="character-grid" id="admin-character-grid"></div></fieldset>
-      </div>
       <div id="admin-modal-error" class="admin-modal-error" hidden></div>
       <div class="modal-actions" style="gap:8px; flex-wrap:wrap;">
         <button type="button" class="btn-mini" id="admin-cancel">Cancelar</button>
@@ -144,13 +134,13 @@
   <div class="modal board-ended-dialog">
     <span class="modal-confetti" aria-hidden="true">🏁</span>
     <h2 id="board-ended-title">⏱️ ¡Tiempo terminado!</h2>
-    <p class="modal-lead">El tablero queda cerrado para que nadie pueda escribir tarjetas ni votar hasta que el admin añada más tiempo.</p>
+    <p class="modal-lead">El tablero queda cerrado.</p>
     <div class="board-ended-admin admin-only" hidden>
       <div class="modal-actions" style="justify-content:flex-start;margin-top:0">
         <button type="button" class="btn btn-primary" id="admin-add-5min">➕ Añadir 5 min</button>
-        <button type="button" class="btn-mini" id="admin-close-ended">Cerrar</button>
       </div>
     </div>
+    <div class="modal-actions"><button type="button" class="btn-mini" id="admin-close-ended">Cerrar</button></div>
   </div>
 </div>
 
@@ -183,7 +173,6 @@
         <span class="conn-dot" aria-hidden="true"></span>
         <span class="conn-text">Conectando…</span>
       </span>
-      <button id="admin-toggle-btn" type="button" class="w-10 h-10 rounded-full border-2 border-slate-gray bg-white flex items-center justify-center text-lg hover:bg-surface-low" title="Modo admin">🔑</button>
     </div>
   </div>
 
@@ -197,7 +186,7 @@
 </header>
 
 <!-- MUSIC BAR -->
-<div class="bg-toad-blue text-white py-2 md:py-3 shadow-md border-b-2 border-slate-gray/20">
+<div id="music-bar" class="bg-toad-blue text-white py-2 md:py-3 shadow-md border-b-2 border-slate-gray/20">
   <div class="max-w-[1280px] mx-auto px-4 md:px-12 flex items-center justify-between gap-4 md:gap-8">
     <div class="flex items-center gap-3 md:gap-4 min-w-0">
       <button id="music-toggle-btn" type="button" aria-pressed="false" class="w-10 h-10 flex items-center justify-center bg-white/20 hover:bg-white/30 rounded-full transition-colors text-base">▶️</button>
@@ -230,7 +219,7 @@
           ¿No estás contento con la velocidad en el equipo? Prepárate para una retrospectiva tan imprevisible como una partida de Mario Kart.
         </p>
       </div>
-      <div class="flex flex-wrap gap-3 shrink-0">
+      <div class="hero-participant-actions flex flex-wrap gap-3 shrink-0">
         <a href="#participant-dashboard" class="bg-luigi-green text-white px-6 py-3 rounded-xl border-2 border-slate-gray shadow-retro font-mono text-sm hover:-translate-y-1 transition-all">🎮 Mi estado</a>
         <a href="#retro" class="bg-white text-ink-black px-6 py-3 rounded-xl border-2 border-slate-gray shadow-retro font-mono text-sm hover:bg-surface-low transition-all">📝 Ir a la retro</a>
       </div>
@@ -566,7 +555,7 @@
     </div>
 
     <!-- COLUMNA DER -->
-    <aside class="lg:w-1/4 space-y-6">
+    <aside id="admin-sidebar" class="lg:w-1/4 space-y-6">
 
       <section id="mini-race" hidden class="bg-white border-2 border-slate-gray rounded-2xl overflow-hidden shadow-retro lg:sticky lg:top-24">
         <div class="bg-ink-black text-white p-4 flex items-center justify-between">
@@ -606,7 +595,7 @@
         </div>
       </section>
 
-      <section class="bg-surface-low border-2 border-slate-gray rounded-2xl p-5 shadow-retro-sm">
+      <section id="objective-panel" class="bg-surface-low border-2 border-slate-gray rounded-2xl p-5 shadow-retro-sm">
         <div class="flex items-center gap-2 mb-3">
           <span class="material-symbols-outlined text-toad-blue">target</span>
           <h3 class="font-display font-bold text-base">Objetivo</h3>
@@ -643,7 +632,7 @@
         </label>
         <div class="grid grid-cols-1 xl:grid-cols-2 gap-2">
           <button id="admin-board-toggle" class="bg-luigi-green text-white border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono shadow-retro-sm">🟢 Activar tablero</button>
-          <button id="admin-timer-pause" disabled class="bg-white border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono hover:bg-surface-low disabled:opacity-50">⏸️ Pausar</button>
+          <button id="admin-timer-pause" disabled aria-label="Pausar cronómetro" title="Pausar cronómetro" class="bg-white border-2 border-slate-gray rounded-lg px-3 py-2 text-lg font-mono hover:bg-surface-low disabled:opacity-50">⏸️</button>
           <button id="admin-timer-reset" class="bg-white border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono hover:bg-surface-low">🔄 Reset</button>
           <button id="admin-release" class="bg-mario-red text-white border-2 border-slate-gray rounded-lg px-3 py-2 text-xs font-mono shadow-retro-sm">🚪 Salir admin</button>
         </div>

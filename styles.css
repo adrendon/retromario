@@ -20,6 +20,37 @@
   --shadow-sm: 2px 2px 0 0 #555e6b;
 }
 
+
+
+/* El acceso admin no se expone como botón en la UI de usuario final. */
+#admin-toggle-btn {
+  display: none !important;
+}
+
+/* ---------- Ruta admin: sin elementos de participante ---------- */
+body.is-admin-route #music-bar,
+body.is-admin-route .hero-participant-actions,
+body.is-admin-route #participant-dashboard,
+body.is-admin-route #retro,
+body.is-admin-route #board-timer,
+body.is-admin-route #objective-panel {
+  display: none !important;
+}
+body.is-admin-route #main-layout { flex-direction: column; }
+body.is-admin-route #main-layout > div,
+body.is-admin-route #main-layout > aside { width: 100%; }
+body.is-admin-route #admin-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+body.is-admin-route #admin-sidebar > * { margin-top: 0 !important; }
+body.is-admin-route #admin-panel { order: 1; }
+body.is-admin-route #mini-race {
+  order: 2;
+  position: static !important;
+}
+
 /* ---------- Pasos: locks y estado admin-only ---------- */
 .step { position: relative; }
 .step.is-locked .step-content,
@@ -42,6 +73,14 @@ body:not(.is-admin) .step-check { visibility:hidden; pointer-events:none; }
 }
 .retro-carousel::-webkit-scrollbar { display:none; }
 .retro-carousel > * { min-width:0; }
+
+@media (min-width: 768px) {
+  #steps-carousel,
+  #board {
+    /* 3 tarjetas completas + 2 gaps (md:gap-6 = 1.5rem) sin mochar la tercera. */
+    grid-auto-columns: calc((100% - 3rem) / 3) !important;
+  }
+}
 [data-carousel-prev]:disabled,
 [data-carousel-next]:disabled {
   opacity:.45; cursor:not-allowed; transform:none;
@@ -475,8 +514,7 @@ body:not(.is-admin) #mini-race { position:static; }
 
 /* ---------- Tablero cerrado por tiempo ---------- */
 body.board-ended .add-form input,
-body.board-ended .add-form button,
-body.board-ended .like-btn {
+body.board-ended .add-form button {
   pointer-events:none;
   opacity:.5;
 }
