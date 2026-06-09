@@ -182,15 +182,36 @@ body:not(.is-admin) .step-check { visibility:hidden; pointer-events:none; }
 .race-kart {
   position:absolute; left:0; top:0;
   display:inline-flex; align-items:center; gap:4px;
+  max-width:min(9rem, calc(100% - 1.75rem));
   background:rgba(0,0,0,.5); color:#fff;
   border-radius:999px; padding:2px 8px;
   font-size:.65rem; font-weight:700; white-space:nowrap;
   transition:left 1s ease;
 }
+.race-kart-name { overflow:hidden; text-overflow:ellipsis; }
 .race-kart.is-me   { background:#facc15; color:#1d2939; outline:2px solid #fff; }
 .race-kart.is-winner { background:#16a34a; color:#fff; }
-.race-kart .emoji { font-size:.95rem; }
+.race-kart .emoji { font-size:.95rem; line-height:1; }
 .race-empty { font-size:.7rem; color:#fff; padding:8px; text-align:center; opacity:.8; }
+
+/* La mini-pista escala progresivamente para que 6-15 pilotos sigan viéndose. */
+#race-track.race-density-compact { height:14rem !important; padding:.6rem !important; }
+#race-track.race-density-dense { height:17rem !important; padding:.5rem !important; }
+#race-track.race-density-ultra { height:19.5rem !important; padding:.45rem !important; }
+.race-lanes.race-density-compact { gap:3px; }
+.race-lanes.race-density-dense,
+.race-lanes.race-density-ultra { gap:2px; }
+.race-lanes.race-density-compact .race-lane { height:24px; }
+.race-lanes.race-density-dense .race-lane { height:19px; }
+.race-lanes.race-density-ultra .race-lane { height:17px; }
+.race-lanes.race-density-compact .race-kart { padding:1px 6px; font-size:.58rem; gap:3px; max-width:min(7.5rem, calc(100% - 1.75rem)); }
+.race-lanes.race-density-dense .race-kart { padding:1px 5px; font-size:.52rem; gap:2px; max-width:min(6.5rem, calc(100% - 1.75rem)); }
+.race-lanes.race-density-ultra .race-kart { padding:1px 4px; font-size:.48rem; gap:2px; max-width:min(5.75rem, calc(100% - 1.75rem)); }
+.race-lanes.race-density-compact .race-kart .emoji { font-size:.78rem; }
+.race-lanes.race-density-dense .race-kart .emoji { font-size:.65rem; }
+.race-lanes.race-density-ultra .race-kart .emoji { font-size:.58rem; }
+.race-lanes.race-density-dense .race-kart.is-me,
+.race-lanes.race-density-ultra .race-kart.is-me { outline-width:1px; }
 
 /* ---------- Podio ---------- */
 .podium-block.podium-1 { height:90px; }
@@ -209,6 +230,54 @@ body:not(.is-admin) .step-check { visibility:hidden; pointer-events:none; }
 }
 .loser-rank { font-weight:700; color:#94a3b8; }
 .loser-cry  { font-size:.95rem; }
+
+/* El resumen del podio también se compacta cuando hay muchos pilotos. */
+.race-results.race-density-dense,
+.race-results.race-density-ultra { padding:10px !important; }
+.podium-stage.race-density-dense,
+.podium-stage.race-density-ultra { height:7.5rem !important; gap:4px !important; }
+.podium-stage.race-density-dense .podium-block.podium-1,
+.podium-stage.race-density-ultra .podium-block.podium-1 { height:72px; }
+.podium-stage.race-density-dense .podium-block.podium-2,
+.podium-stage.race-density-ultra .podium-block.podium-2 { height:48px; }
+.podium-stage.race-density-dense .podium-block.podium-3,
+.podium-stage.race-density-ultra .podium-block.podium-3 { height:36px; }
+.podium-stage.race-density-dense .podium-medal,
+.podium-stage.race-density-ultra .podium-medal { font-size:1rem; }
+.podium-stage.race-density-dense .podium-emoji,
+.podium-stage.race-density-ultra .podium-emoji { font-size:.85rem; }
+.podium-stage.race-density-dense .podium-name,
+.podium-stage.race-density-ultra .podium-name {
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:.62rem;
+}
+.losers.race-density-dense .losers-list,
+.losers.race-density-ultra .losers-list {
+  display:grid;
+  grid-template-columns:repeat(2, minmax(0, 1fr));
+  gap:4px;
+}
+.losers.race-density-dense .loser-item,
+.losers.race-density-ultra .loser-item {
+  gap:4px;
+  min-width:0;
+  padding:3px 5px;
+  font-size:.62rem;
+}
+.losers.race-density-dense .loser-cry,
+.losers.race-density-ultra .loser-cry,
+.losers.race-density-dense .loser-emoji,
+.losers.race-density-ultra .loser-emoji { font-size:.72rem; }
+.losers.race-density-dense .loser-name,
+.losers.race-density-ultra .loser-name {
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
 
 /* ---------- Toasts ---------- */
 .toast {
