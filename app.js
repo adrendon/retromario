@@ -1032,7 +1032,7 @@ function renderRace() {
     if (actuallyFinished && idx === 0) kart.classList.add('is-winner');
     if (!actuallyFinished && Number(s.columns || 0) > 0) kart.classList.add('is-running');
     const rawPct = (Number(s.columns || 0) / target) * 100;
-    const pct = actuallyFinished ? 95 : Math.max(2, Math.min(82, rawPct * 0.8 + 2));
+    const pct = actuallyFinished ? 72 : Math.max(2, Math.min(65, rawPct * 0.63 + 2));
     kart.style.left = pct + '%';
 
     // Anclar tooltip: al inicio (pct <= 15) a la izquierda, en meta lo maneja is-finished en CSS
