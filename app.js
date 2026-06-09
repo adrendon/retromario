@@ -1228,7 +1228,6 @@ const moodForm      = document.getElementById('mood-form');
 const moodClearBtn  = document.getElementById('mood-clear-btn');
 const moodCancelBtn = document.getElementById('mood-cancel-btn');
 const moodsWall     = document.getElementById('moods-wall');
-const moodsWallInline = document.getElementById('moods-wall-inline');
 const adminMoodsWall = document.getElementById('admin-moods-wall');
 const myMoodCard    = document.getElementById('my-mood-card');
 
@@ -1279,12 +1278,20 @@ if (moodForm) {
     if (SERVER_MODE) {
       if (!clientId) await waitForClientId(2000);
       try {
-        await fetch('/api/moods', {
+        const r = await fetch('/api/moods', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ clientId, emoji, label })
         });
-      } catch { toast('No pude compartir tu ánimo', 'warn'); }
+        const out = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          toast(out.error || 'No pude compartir tu ánimo', 'warn');
+          return;
+        }
+        if (Array.isArray(out.moods)) moods = out.moods;
+        else moods = moods.filter(m => m.name && m.name.toLowerCase() !== currentPilot.name.toLowerCase()).concat({ emoji, label, name: currentPilot.name, character: currentPilot.character });
+        renderMoods();
+      } catch { toast('No pude compartir tu ánimo', 'warn'); return; }
     } else {
       // local: reemplaza el mood del piloto actual
       moods = moods.filter(m => m.name.toLowerCase() !== currentPilot.name.toLowerCase());
@@ -1302,11 +1309,15 @@ if (moodClearBtn) {
     if (SERVER_MODE) {
       if (!clientId) await waitForClientId(2000);
       try {
-        await fetch('/api/moods', {
+        const r = await fetch('/api/moods', {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ clientId })
         });
+        const out = await r.json().catch(() => ({}));
+        if (r.ok && Array.isArray(out.moods)) moods = out.moods;
+        else moods = moods.filter(m => m.name && m.name.toLowerCase() !== currentPilot.name.toLowerCase());
+        renderMoods();
       } catch {}
     } else if (currentPilot) {
       moods = moods.filter(m => m.name.toLowerCase() !== currentPilot.name.toLowerCase());
@@ -1354,9 +1365,10 @@ function renderMoods() {
       : 'Elige tu estado para aparecer en el muro del equipo.';
   }
 
-  // El usuario final solo ve su selección; el panel admin sí lista a todo el equipo.
+  // El usuario final ya ve su selección en la tarjeta principal; el muro del modal
+  // muestra solo su ánimo para confirmar el estado sin duplicarlo en el dashboard.
   const userMoods = mine ? [mine] : [];
-  renderMoodList([moodsWall, moodsWallInline], userMoods, 'Aún no has compartido tu ánimo');
+  renderMoodList([moodsWall], userMoods, 'Aún no has compartido tu ánimo');
   renderMoodList([adminMoodsWall], moods, 'Aún nadie ha compartido su ánimo');
 }
 
