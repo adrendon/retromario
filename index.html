@@ -102,24 +102,6 @@
   </div>
 </div>
 
-<!-- MODAL: música -->
-<div class="modal-backdrop" id="music-modal" role="dialog" aria-modal="true" aria-labelledby="music-title" hidden>
-  <div class="modal" style="max-width:460px">
-    <span class="modal-confetti" aria-hidden="true">🎵</span>
-    <h2 id="music-title">🎶 Reproductor de carrera</h2>
-    <p class="modal-lead">Elige una de las 5 canciones chiptune 8-bit de la carrera. Cambia entre pistas desde aquí o desde la barra superior.</p>
-    <div class="music-player">
-      <button type="button" id="music-modal-toggle" class="btn btn-primary btn-music-big">▶️ Reproducir</button>
-      <div class="music-meta">
-        <span id="music-track-name">Retro Kart Theme · 8-bit</span>
-      </div>
-      <div id="music-track-list" class="music-track-list"></div>
-      <label class="music-volume">Volumen <input type="range" id="music-volume" min="0" max="100" value="40" /></label>
-    </div>
-    <div class="modal-actions"><button type="button" class="btn-mini" data-closes="music-modal">Cerrar</button></div>
-  </div>
-</div>
-
 <!-- MODAL: objetivo -->
 <div class="modal-backdrop" id="objective-modal" role="dialog" aria-modal="true" aria-labelledby="objective-title" hidden>
   <div class="modal">
@@ -153,6 +135,23 @@
       <ul class="actions-list" id="actions-list" aria-live="polite"></ul>
     </div>
     <div class="modal-actions"><button type="button" class="btn-mini" data-closes="actions-modal">Cerrar</button></div>
+  </div>
+</div>
+
+
+<!-- MODAL: tiempo agotado -->
+<div class="modal-backdrop" id="board-ended-modal" role="dialog" aria-modal="true" aria-labelledby="board-ended-title" hidden>
+  <div class="modal board-ended-dialog">
+    <span class="modal-confetti" aria-hidden="true">🏁</span>
+    <h2 id="board-ended-title">⏱️ ¡Tiempo terminado!</h2>
+    <p class="modal-lead">El tablero queda cerrado para que nadie pueda escribir tarjetas ni votar hasta que el admin añada más tiempo.</p>
+    <div class="board-ended-admin admin-only" hidden>
+      <p class="font-mono text-[10px] uppercase text-slate-gray mb-2">Solo admin</p>
+      <div class="modal-actions" style="justify-content:flex-start;margin-top:0">
+        <button type="button" class="btn btn-primary" id="admin-add-5min">➕ Añadir 5 min</button>
+        <button type="button" class="btn-mini" id="admin-close-ended">Cerrar</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -218,7 +217,6 @@
     <div class="flex items-center gap-1">
       <button id="music-prev-btn" type="button" class="p-2 hover:bg-white/10 rounded-lg transition-colors" title="Pista anterior"><span class="material-symbols-outlined">skip_previous</span></button>
       <button id="music-next-btn" type="button" class="p-2 hover:bg-white/10 rounded-lg transition-colors" title="Siguiente pista"><span class="material-symbols-outlined">skip_next</span></button>
-      <button type="button" class="p-2 hover:bg-white/10 rounded-lg transition-colors text-xs font-mono" data-opens="music-modal" title="Ver 5 canciones">🎶 <span class="hidden sm:inline">5 pistas</span></button>
     </div>
   </div>
 </div>
@@ -487,7 +485,7 @@
               <ul class="card-list flex-1 p-3 space-y-3 overflow-y-auto" data-cat="banana-past" aria-live="polite"></ul>
               <form class="add-form p-3 border-t border-slate-gray/20" data-cat="banana-past">
                 <input type="text" maxlength="200" placeholder="Escribe en qué tropezamos…" required class="w-full bg-surface border-2 border-dashed border-slate-gray/40 rounded-xl px-3 py-2 text-sm" />
-                <button type="submit" class="hidden">Añadir</button>
+                <button type="submit" class="send-card-btn" title="Enviar tarjeta">📨</button>
               </form>
             </article>
 
@@ -500,7 +498,7 @@
               <ul class="card-list flex-1 p-3 space-y-3 overflow-y-auto" data-cat="power-past" aria-live="polite"></ul>
               <form class="add-form p-3 border-t border-slate-gray/20" data-cat="power-past">
                 <input type="text" maxlength="200" placeholder="Escribe qué nos aceleró…" required class="w-full bg-surface border-2 border-dashed border-slate-gray/40 rounded-xl px-3 py-2 text-sm" />
-                <button type="submit" class="hidden">Añadir</button>
+                <button type="submit" class="send-card-btn" title="Enviar tarjeta">📨</button>
               </form>
             </article>
 
@@ -513,7 +511,7 @@
               <ul class="card-list flex-1 p-3 space-y-3 overflow-y-auto" data-cat="shortcut-past" aria-live="polite"></ul>
               <form class="add-form p-3 border-t border-slate-gray/20" data-cat="shortcut-past">
                 <input type="text" maxlength="200" placeholder="Escribe un atajo que funcionó…" required class="w-full bg-surface border-2 border-dashed border-slate-gray/40 rounded-xl px-3 py-2 text-sm" />
-                <button type="submit" class="hidden">Añadir</button>
+                <button type="submit" class="send-card-btn" title="Enviar tarjeta">📨</button>
               </form>
             </article>
 
@@ -526,7 +524,7 @@
               <ul class="card-list flex-1 p-3 space-y-3 overflow-y-auto" data-cat="banana-future" aria-live="polite"></ul>
               <form class="add-form p-3 border-t border-slate-gray/20" data-cat="banana-future">
                 <input type="text" maxlength="200" placeholder="Escribe un riesgo futuro…" required class="w-full bg-surface border-2 border-dashed border-slate-gray/40 rounded-xl px-3 py-2 text-sm" />
-                <button type="submit" class="hidden">Añadir</button>
+                <button type="submit" class="send-card-btn" title="Enviar tarjeta">📨</button>
               </form>
             </article>
 
@@ -539,7 +537,7 @@
               <ul class="card-list flex-1 p-3 space-y-3 overflow-y-auto" data-cat="power-future" aria-live="polite"></ul>
               <form class="add-form p-3 border-t border-slate-gray/20" data-cat="power-future">
                 <input type="text" maxlength="200" placeholder="Escribe un potenciador a activar…" required class="w-full bg-surface border-2 border-dashed border-slate-gray/40 rounded-xl px-3 py-2 text-sm" />
-                <button type="submit" class="hidden">Añadir</button>
+                <button type="submit" class="send-card-btn" title="Enviar tarjeta">📨</button>
               </form>
             </article>
 
@@ -552,7 +550,7 @@
               <ul class="card-list flex-1 p-3 space-y-3 overflow-y-auto" data-cat="shortcut-future" aria-live="polite"></ul>
               <form class="add-form p-3 border-t border-slate-gray/20" data-cat="shortcut-future">
                 <input type="text" maxlength="200" placeholder="Escribe un atajo a explorar…" required class="w-full bg-surface border-2 border-dashed border-slate-gray/40 rounded-xl px-3 py-2 text-sm" />
-                <button type="submit" class="hidden">Añadir</button>
+                <button type="submit" class="send-card-btn" title="Enviar tarjeta">📨</button>
               </form>
             </article>
           </div>

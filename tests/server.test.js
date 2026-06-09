@@ -201,6 +201,28 @@ test('Cronómetro: start/pause/reset por admin', async () => {
   assert.strictEqual(r.body.startedAt, 0);
 });
 
+test('POST /api/cards rechaza cuando terminó el tiempo del tablero', async () => {
+  const adminCid = 'admin-expired-aabb1100';
+  const pilotCid = 'pilot-expired-ccdd2200';
+  await openStreamHello(adminCid);
+  await openStreamHello(pilotCid);
+  await request('POST', '/api/admin/claim', { clientId: adminCid, pin: 'sitioBanco' });
+  await request('POST', '/api/board', { clientId: adminCid, active: true });
+  await request('POST', '/api/pilots', { clientId: pilotCid, name: 'Eva', character: '🍄' });
+  const started = await request('POST', '/api/timer', { clientId: adminCid, action: 'start', durationSec: 10 });
+  assert.strictEqual(started.status, 200);
+
+  const realNow = Date.now;
+  Date.now = () => started.body.startedAt + 11_000;
+  try {
+    const r = await request('POST', '/api/cards', { clientId: pilotCid, cat: 'banana-past', text: 'fuera de tiempo' });
+    assert.strictEqual(r.status, 409);
+    assert.match(r.body.error, /tiempo/i);
+  } finally {
+    Date.now = realNow;
+  }
+});
+
 test('POST /api/cards rechaza con tablero inactivo (409)', async () => {
   const cid = 'pilot-card-22334455';
   await openStreamHello(cid);

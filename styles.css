@@ -448,3 +448,49 @@ body:not(.is-admin) #main-layout { flex-direction:column; }
 body:not(.is-admin) #main-layout > div,
 body:not(.is-admin) #main-layout > aside { width:100%; }
 body:not(.is-admin) #mini-race { position:static; }
+
+/* ---------- Ajustes tablero/tarjetas ---------- */
+.add-form {
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.add-form input[type="text"] { flex:1; min-width:0; }
+.send-card-btn {
+  width:40px;
+  height:40px;
+  flex:0 0 auto;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border:2px solid var(--slate);
+  border-radius:12px;
+  background:var(--luigi);
+  color:#fff;
+  box-shadow:var(--shadow-sm);
+  cursor:pointer;
+  transition:transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+}
+.send-card-btn:hover { transform:translateY(-1px); }
+.send-card-btn:active { transform:translateY(1px); box-shadow:none; }
+.send-card-btn:disabled { opacity:.45; cursor:not-allowed; transform:none; }
+.card-column { overflow:visible !important; }
+#board { overflow-y:visible; padding-top:4px; padding-bottom:10px; }
+#pilots-bar,
+#pilot-list { overflow:visible !important; }
+.pilot-chip-avatar::after { bottom:auto; top:calc(100% + 8px); z-index:80; }
+
+/* ---------- Tablero cerrado por tiempo ---------- */
+body.board-ended .add-form input,
+body.board-ended .add-form button,
+body.board-ended .like-btn {
+  pointer-events:none;
+  opacity:.5;
+}
+.board-ended-dialog { border-color:var(--mario); }
+.board-ended-admin {
+  background:var(--surface-low);
+  border:2px dashed var(--slate);
+  border-radius:14px;
+  padding:12px;
+}

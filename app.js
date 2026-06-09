@@ -139,6 +139,7 @@ function renderCategory(cat) {
       if (!SERVER_MODE) { toast('Modo local: los me gusta requieren servidor', 'warn'); return; }
       if (!currentPilot)  { toast('Únete primero para dar me gusta', 'warn'); return; }
       if (!boardActive)   { toast('El tablero no está activo', 'warn'); return; }
+      if (boardEnded)    { toast('Tiempo terminado: espera a que el admin añada más tiempo 🏁', 'warn'); return; }
       // El autor de la tarjeta no puede darse like a sí mismo
       if (currentPilot.name.toLowerCase() === (card.author || '').toLowerCase()) {
         toast('No puedes darle me gusta a tu propia tarjeta 😅', 'warn'); return;
@@ -326,14 +327,19 @@ function renderPilots() {
 
 function updateFormsEnabled() {
   const has = !!currentPilot;
+  const writable = has && boardActive && !boardEnded;
   document.querySelectorAll('.add-form').forEach(f => {
-    const input = f.querySelector('input');
-    const btn   = f.querySelector('button');
-    if (input) input.disabled = !has;
-    if (btn)   btn.disabled   = !has;
-    if (input) input.placeholder = has
-      ? (input.dataset.basePlaceholder || input.placeholder)
-      : '🔒 Únete primero para escribir…';
+    const input = f.querySelector('input[type=text]');
+    const btn   = f.querySelector('button[type=submit]');
+    if (input) input.disabled = !writable;
+    if (btn)   btn.disabled   = !writable;
+    if (input) {
+      input.placeholder = !has
+        ? '🔒 Únete primero para escribir…'
+        : (!boardActive ? '⏳ El tablero aún no está activo…'
+          : (boardEnded ? '🏁 Tiempo terminado: espera al admin…'
+            : (input.dataset.basePlaceholder || input.placeholder)));
+    }
   });
 }
 
@@ -500,6 +506,8 @@ document.querySelectorAll('.add-form').forEach(form => {
       toast('Únete a la carrera para escribir 🏎️', 'warn');
       return;
     }
+    if (!boardActive) { toast('El tablero aún no está activo', 'warn'); return; }
+    if (boardEnded) { toast('Tiempo terminado: espera a que el admin añada más tiempo 🏁', 'warn'); return; }
     const value = input.value.trim();
     if (!value) return;
     try {
@@ -962,8 +970,7 @@ function renderRace() {
 // Alias para no romper otras llamadas a renderLanes()
 const renderLanes = renderRace;
 
-/* ---------- PASO 1: botón rápido de música ---------- */
-// (el botón del paso 1 ahora abre el modal #music-modal vía data-opens)
+/* ---------- PASO 1: música desde la barra superior ---------- */
 
 /* ---------- Apertura/cierre de modales por data-opens / data-closes ---------- */
 function closeAnyModal(id) {
@@ -1606,7 +1613,7 @@ const TIMER_BASS = [
 const BPM_MAIN  = 200;
 const BPM_TIMER = 260;
 
-// Catálogo de 5 pistas 8-bit. Cada una con melodía + bajo + bpm + icono.
+// Catálogo de pistas 8-bit. Cada una con melodía + bajo + bpm + icono.
 const TRACKS = [
   {
     id: 'main',
@@ -1706,10 +1713,10 @@ function extendSequence(seq, minBeats) {
 function trackData(id) {
   const t = trackById(id);
   // Cada canción debe sentirse como una pista completa, no como un jingle corto.
-  // Repetimos frases hasta rondar al menos 96 beats antes de volver al inicio.
+  // Repetimos frases hasta que cada loop dure al menos 5 minutos.
   return {
-    melody: extendSequence(t.melody, 96),
-    bass: extendSequence(t.bass, 96),
+    melody: extendSequence(t.melody, t.bpm * 5),
+    bass: extendSequence(t.bass, t.bpm * 5),
     bpm: t.bpm,
     melodyType: t.melodyType || 'square',
     bassType: t.bassType || 'triangle'
@@ -1761,6 +1768,14 @@ function midiToFreq(m) { return 440 * Math.pow(2, (m - 69) / 12); }
 function currentMusicGainValue() {
   const pct = Math.max(0, Math.min(100, Number(readSession(MUSIC_VOLUME_KEY, '40'))));
   return 0.2 * (pct / 100);
+}
+function setMusicVolumePct(value) {
+  const pct = Math.max(0, Math.min(100, Number(value)));
+  writeSession(MUSIC_VOLUME_KEY, pct);
+  if (audioCtx && musicGain) {
+    musicGain.gain.cancelScheduledValues(audioCtx.currentTime);
+    musicGain.gain.setValueAtTime(0.2 * (pct / 100), audioCtx.currentTime);
+  }
 }
 
 function ensureAudio() {
@@ -1840,9 +1855,11 @@ function startMusic() {
   if (ctx.state === 'suspended') ctx.resume();
   musicOn = true;
   writeSession(MUSIC_KEY, true);
-  musicBtn.textContent = '⏸️ Pausar';
-  musicBtn.setAttribute('aria-pressed', 'true');
-  musicBtn.classList.add('is-on');
+  if (musicBtn) {
+    musicBtn.textContent = '⏸️ Pausar';
+    musicBtn.setAttribute('aria-pressed', 'true');
+    musicBtn.classList.add('is-on');
+  }
   syncMusicModal();
   if (window.__syncMusicBar) window.__syncMusicBar();
   scheduleLoop();
@@ -1862,9 +1879,11 @@ function stopMusic() {
       if (musicGain) { musicGain.gain.value = currentMusicGainValue(); }
     }, 250);
   }
-  musicBtn.textContent = '▶️ Play';
-  musicBtn.setAttribute('aria-pressed', 'false');
-  musicBtn.classList.remove('is-on');
+  if (musicBtn) {
+    musicBtn.textContent = '▶️ Play';
+    musicBtn.setAttribute('aria-pressed', 'false');
+    musicBtn.classList.remove('is-on');
+  }
   syncMusicModal();
   if (window.__syncMusicBar) window.__syncMusicBar();
 }
@@ -1908,21 +1927,14 @@ if (musicModalToggle) {
   });
 }
 if (musicVolume) {
-  musicVolume.addEventListener('input', () => {
-    const pct = Math.max(0, Math.min(100, Number(musicVolume.value)));
-    writeSession(MUSIC_VOLUME_KEY, pct);
-    const v = pct / 100;
-    // El volumen pico interno es 0.08 (suave). Mapeamos 0..1 → 0..0.2 para no atronar.
-    if (audioCtx && musicGain) {
-      musicGain.gain.cancelScheduledValues(audioCtx.currentTime);
-      musicGain.gain.setValueAtTime(0.2 * v, audioCtx.currentTime);
-    }
-  });
+  musicVolume.addEventListener('input', () => setMusicVolumePct(musicVolume.value));
 }
 
-musicBtn.addEventListener('click', () => {
-  if (musicOn) stopMusic(); else startMusic();
-});
+if (musicBtn) {
+  musicBtn.addEventListener('click', () => {
+    if (musicOn) stopMusic(); else startMusic();
+  });
+}
 
 /* Autoarranque de música: solo si el usuario ya había activado la música antes
    (la primera vez se arranca al pulsar "¡A correr!" en el modal de unirse). */
@@ -1948,36 +1960,6 @@ window.sfxCoin   = () => sfx([[88,1],[95,3]], 'square', 0.18);          // moned
 window.sfxStart  = () => sfx([[72,1],[76,1],[79,1],[84,3]], 'square', 0.2); // arranque
 window.sfxBoom   = () => sfx([[60,1],[55,1],[48,2]], 'sawtooth', 0.2);  // salida en falso
 
-/* ---------- Init ---------- */
-(async function init() {
-  try { await loadInitial(); }
-  catch { toast('No se pudo cargar el estado, sigo en modo local', 'warn'); }
-  renderAll();
-  renderPilots();
-  renderObjective();
-  renderMoods();
-  renderActions();
-  applyRaceState(raceState);
-
-  connectSSE();
-
-  // Estado de música persistido
-  const wantsMusic = readSession(MUSIC_KEY, 'false') === 'true';
-  if (wantsMusic) {
-    // Autoplay está bloqueado hasta que haya interacción.
-    // Marcamos el botón y esperamos un primer click en cualquier sitio.
-    musicBtn.textContent = '▶️ Pulsa para reanudar música';
-    const resumer = () => { startMusic(); document.removeEventListener('click', resumer, true); };
-    document.addEventListener('click', resumer, true);
-  }
-
-  if (!currentPilot) {
-    // Si entró por /admin, salta el modal de piloto y abre directo el de admin.
-    const isAdminRoute = /^\/admin\/?$/i.test(location.pathname) || location.hash === '#admin';
-    if (!isAdminRoute) openJoinModal();
-  }
-})();
-
 /* =========================================================
    SPRINT · ADMIN · TABLERO · CRONÓMETRO
    ========================================================= */
@@ -1995,6 +1977,11 @@ function applySprint(s) {
 
 /* ---------- Tablero activo / bloqueado ---------- */
 let boardActive = false;
+let boardEnded = false;
+let boardEndedModalShown = false;
+const boardEndedModal = document.getElementById('board-ended-modal');
+const adminAdd5MinBtn = document.getElementById('admin-add-5min');
+const adminCloseEndedBtn = document.getElementById('admin-close-ended');
 const boardLockEl     = document.getElementById('board-lock');
 const miniRaceSection = document.getElementById('mini-race');
 
@@ -2004,8 +1991,8 @@ function applyBoardActive(active) {
   document.querySelectorAll('.add-form').forEach(f => {
     const input = f.querySelector('input[type=text]');
     const btn   = f.querySelector('button[type=submit]');
-    if (input) input.disabled = !boardActive;
-    if (btn)   btn.disabled   = !boardActive;
+    if (input) input.disabled = !boardActive || boardEnded || !currentPilot;
+    if (btn)   btn.disabled   = !boardActive || boardEnded || !currentPilot;
   });
   if (adminBoardToggle) {
     adminBoardToggle.hidden = !isAdmin;
@@ -2013,8 +2000,10 @@ function applyBoardActive(active) {
     adminBoardToggle.classList.toggle('bg-mario-red', boardActive);
     adminBoardToggle.classList.toggle('bg-luigi-green', !boardActive);
   }
+  updateFormsEnabled();
   updateRaceVisibility();
 }
+
 
 function updateRaceVisibility() {
   if (!miniRaceSection) return;
@@ -2131,6 +2120,50 @@ if (adminBoardToggle) {
   });
 }
 
+function setBoardEnded(ended, { showModal = true } = {}) {
+  const next = !!ended;
+  if (boardEnded === next && (!next || boardEndedModalShown || !showModal)) {
+    document.body.classList.toggle('board-ended', boardEnded);
+    updateFormsEnabled();
+    return;
+  }
+  boardEnded = next;
+  document.body.classList.toggle('board-ended', boardEnded);
+  updateFormsEnabled();
+  if (boardEnded && showModal && boardEndedModal && !boardEndedModalShown) {
+    boardEndedModalShown = true;
+    boardEndedModal.hidden = false;
+  }
+  if (!boardEnded) {
+    boardEndedModalShown = false;
+    if (boardEndedModal) boardEndedModal.hidden = true;
+  }
+}
+
+function timerRemainingMs() {
+  const totalMs = timerState.durationSec * 1000;
+  let elapsedMs = timerState.elapsedAtPause || 0;
+  if (timerState.running && timerState.startedAt) {
+    const localServerNow = Date.now() - timerOffsetMs;
+    elapsedMs += (localServerNow - timerState.startedAt);
+  }
+  return Math.max(0, totalMs - elapsedMs);
+}
+
+async function addBoardTime(seconds) {
+  if (!isAdmin || !clientId) return;
+  const elapsedSec = Math.max(0, Math.floor(((timerState.durationSec * 1000) - timerRemainingMs()) / 1000));
+  const nextDuration = Math.max(timerState.durationSec + seconds, elapsedSec + seconds);
+  try {
+    await adminFetch('/api/timer', { durationSec: nextDuration, action: 'resume' });
+    setBoardEnded(false);
+    if (!boardActive) await adminFetch('/api/board', { active: true });
+    toast(`Se añadieron ${Math.round(seconds / 60)} min al tablero ⏱️`, 'success');
+  } catch { toast('No se pudo añadir tiempo', 'danger'); }
+}
+if (adminAdd5MinBtn) adminAdd5MinBtn.addEventListener('click', () => addBoardTime(5 * 60));
+if (adminCloseEndedBtn) adminCloseEndedBtn.addEventListener('click', () => { if (boardEndedModal) boardEndedModal.hidden = true; });
+
 // Activa/desactiva el tablero + cronómetro cuando el admin marca el paso 5 o el admin usa el botón manual.
 async function handleStep5Change(active) {
   if (!isAdmin || !clientId) return;
@@ -2158,7 +2191,10 @@ if (adminTimerPause) {
 if (adminTimerReset) {
   adminTimerReset.addEventListener('click', async () => {
     if (!isAdmin || !clientId) return;
-    try { await adminFetch('/api/timer', { action: 'reset' }); } catch {}
+    try {
+      await adminFetch('/api/timer', { action: 'reset' });
+      setBoardEnded(false);
+    } catch {}
   });
 }
 if (adminTimerSelect) {
@@ -2204,18 +2240,14 @@ function startTimerTick() {
 function renderTimer() {
   if (!boardTimerEl) return;
   const hasState = !!(timerState.startedAt || timerState.elapsedAtPause);
-  if (!hasState) { boardTimerEl.hidden = true; return; }
+  if (!hasState) {
+    boardTimerEl.hidden = true;
+    setBoardEnded(false);
+    return;
+  }
   boardTimerEl.hidden = false;
 
-  let elapsedMs;
-  if (timerState.running && timerState.startedAt) {
-    const localServerNow = Date.now() - timerOffsetMs;
-    elapsedMs = (timerState.elapsedAtPause || 0) + (localServerNow - timerState.startedAt);
-  } else {
-    elapsedMs = timerState.elapsedAtPause || 0;
-  }
-  const totalMs = timerState.durationSec * 1000;
-  const remainingMs = Math.max(0, totalMs - elapsedMs);
+  const remainingMs = timerRemainingMs();
   const sec = Math.ceil(remainingMs / 1000);
   const mm = String(Math.floor(sec / 60)).padStart(2, '0');
   const ss = String(sec % 60).padStart(2, '0');
@@ -2224,8 +2256,10 @@ function renderTimer() {
     if (timerStateEl) timerStateEl.textContent = '¡Tiempo! 🏁';
     boardTimerEl.classList.add('is-finished');
     setTrack('main');
+    setBoardEnded(boardActive, { showModal: true });
   } else {
     boardTimerEl.classList.remove('is-finished');
+    setBoardEnded(false);
     if (timerStateEl) timerStateEl.textContent = timerState.running ? '⏵ corriendo' : '⏸ en pausa';
   }
 }
@@ -2447,8 +2481,8 @@ refreshAdminUI = function () {
   // Volumen sincronizado entre barra y modal.
   if (volBar) {
     volBar.addEventListener('input', () => {
-      writeSession(MUSIC_VOLUME_KEY, volBar.value);
-      if (volModal) { volModal.value = volBar.value; volModal.dispatchEvent(new Event('input')); }
+      setMusicVolumePct(volBar.value);
+      if (volModal) volModal.value = volBar.value;
     });
   }
   if (prev) prev.addEventListener('click', () => { if (typeof prevTrack === 'function') prevTrack(); });
@@ -2586,4 +2620,35 @@ refreshAdminUI = function () {
   });
   obs.observe(sec, { attributes: true, attributeFilter: ['hidden'] });
   obs.observe(board, { attributes: true, attributeFilter: ['hidden'] });
+})();
+
+
+/* ---------- Init ---------- */
+(async function init() {
+  try { await loadInitial(); }
+  catch { toast('No se pudo cargar el estado, sigo en modo local', 'warn'); }
+  renderAll();
+  renderPilots();
+  renderObjective();
+  renderMoods();
+  renderActions();
+  applyRaceState(raceState);
+
+  connectSSE();
+
+  // Estado de música persistido
+  const wantsMusic = readSession(MUSIC_KEY, 'false') === 'true';
+  if (wantsMusic) {
+    // Autoplay está bloqueado hasta que haya interacción.
+    // Marcamos el botón y esperamos un primer click en cualquier sitio.
+    if (musicBtn) musicBtn.textContent = '▶️ Pulsa para reanudar música';
+    const resumer = () => { startMusic(); document.removeEventListener('click', resumer, true); };
+    document.addEventListener('click', resumer, true);
+  }
+
+  if (!currentPilot) {
+    // Si entró por /admin, salta el modal de piloto y abre directo el de admin.
+    const isAdminRoute = /^\/admin\/?$/i.test(location.pathname) || location.hash === '#admin';
+    if (!isAdminRoute) openJoinModal();
+  }
 })();
