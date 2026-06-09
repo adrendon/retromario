@@ -200,6 +200,7 @@ body:not(.is-admin) .step-check { visibility:hidden; pointer-events:none; }
   position:relative; height:32px; display:flex; align-items:center;
 }
 .race-kart {
+  --kart-x:0;
   position:absolute; left:0; top:0;
   display:inline-flex; align-items:center; gap:4px;
   max-width:min(9rem, calc(100% - 1.75rem));
@@ -208,6 +209,7 @@ body:not(.is-admin) .step-check { visibility:hidden; pointer-events:none; }
   font-size:.65rem; font-weight:700; white-space:nowrap;
   transition:left 1s ease;
 }
+.race-kart.is-finished { --kart-x:-100%; }
 .race-kart-name { overflow:hidden; text-overflow:ellipsis; }
 .race-kart.is-me   { background:#facc15; color:#1d2939; outline:2px solid #fff; }
 .race-kart.is-winner { background:#16a34a; color:#fff; }
@@ -752,8 +754,8 @@ body.board-active #race-track,
   animation:kart-bob .35s ease-in-out infinite alternate, winner-glow .9s ease-in-out infinite;
 }
 @keyframes kart-bob {
-  from { transform:translateY(0) rotate(-1deg); }
-  to { transform:translateY(-2px) rotate(1deg); }
+  from { transform:translateX(var(--kart-x, 0)) translateY(0) rotate(-1deg); }
+  to { transform:translateX(var(--kart-x, 0)) translateY(-2px) rotate(1deg); }
 }
 @keyframes winner-glow {
   0%, 100% { box-shadow:0 0 0 0 rgba(250,204,21,.65); }

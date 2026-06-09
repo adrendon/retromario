@@ -1027,6 +1027,7 @@ function renderRace() {
     const kart = document.createElement('div');
     kart.className = 'race-kart';
     const actuallyFinished = !!(s.finished && Number(s.columns || 0) >= target);
+    if (actuallyFinished) kart.classList.add('is-finished');
     if (actuallyFinished && idx === 0) kart.classList.add('is-winner');
     if (!actuallyFinished && Number(s.columns || 0) > 0) kart.classList.add('is-running');
     const rawPct = (Number(s.columns || 0) / target) * 100;
