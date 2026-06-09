@@ -141,7 +141,6 @@ function renderCategory(cat) {
       if (!SERVER_MODE) { toast('Modo local: los me gusta requieren servidor', 'warn'); return; }
       if (!currentPilot)  { toast('Únete primero para dar me gusta', 'warn'); return; }
       if (!boardActive)   { toast('El tablero no está activo', 'warn'); return; }
-      if (boardEnded)    { toast('Tiempo terminado: espera a que el admin añada más tiempo 🏁', 'warn'); return; }
       // El autor de la tarjeta no puede darse like a sí mismo
       if (currentPilot.name.toLowerCase() === (card.author || '').toLowerCase()) {
         toast('No puedes darle me gusta a tu propia tarjeta 😅', 'warn'); return;
@@ -369,7 +368,7 @@ function updateFormsEnabled() {
       input.placeholder = !has
         ? '🔒 Únete primero para escribir…'
         : (!boardActive ? '⏳ El tablero aún no está activo…'
-          : (boardEnded ? '🏁 Tiempo terminado: espera al admin…'
+          : (boardEnded ? '🏁 El tablero queda cerrado…'
             : (input.dataset.basePlaceholder || input.placeholder)));
     }
   });
@@ -539,7 +538,7 @@ document.querySelectorAll('.add-form').forEach(form => {
       return;
     }
     if (!boardActive) { toast('El tablero aún no está activo', 'warn'); return; }
-    if (boardEnded) { toast('Tiempo terminado: espera a que el admin añada más tiempo 🏁', 'warn'); return; }
+    if (boardEnded) { toast('El tablero queda cerrado.', 'warn'); return; }
     const value = input.value.trim();
     if (!value) return;
     try {
@@ -1440,7 +1439,7 @@ function setConnState(state, text) {
   const labels = {
     connecting: 'Conectando…',
     live: 'En vivo',
-    polling: 'Sondeo',
+    polling: 'Sincronizando',
     reconnecting: 'Reconectando…',
     offline: 'Sin conexión',
   };

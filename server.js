@@ -568,7 +568,7 @@ async function handleApi(req, res, url) {
   if (req.method === 'POST' && parts.length === 2 && parts[1] === 'cards') {
     const body = await readBody(req);
     if (!data.boardActive) return send(res, 409, { error: 'El tablero no está activo' });
-    if (!boardWritable()) return send(res, 409, { error: 'El tiempo del tablero terminó' });
+    if (!boardWritable()) return send(res, 409, { error: 'El tablero queda cerrado' });
     const cat = String(body.cat || '');
     if (!CATEGORIES.includes(cat)) return send(res, 400, { error: 'Categoría inválida' });
     const text = sanitize(body.text, 200).trim();
@@ -612,7 +612,6 @@ async function handleApi(req, res, url) {
     const id  = parts[3];
     if (!CATEGORIES.includes(cat)) return send(res, 404, { error: 'Categoría' });
     if (!data.boardActive) return send(res, 409, { error: 'El tablero no está activo' });
-    if (!boardWritable()) return send(res, 409, { error: 'El tiempo del tablero terminó' });
     const body = await readBody(req);
     const cid = normalizeClientId(body.clientId || req.headers['x-client-id'] || '');
     const pilot = cid ? livePilots.get(cid) : null;

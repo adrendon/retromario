@@ -238,7 +238,40 @@ test('POST /api/cards rechaza cuando terminó el tiempo del tablero', async () =
   try {
     const r = await request('POST', '/api/cards', { clientId: pilotCid, cat: 'banana-past', text: 'fuera de tiempo' });
     assert.strictEqual(r.status, 409);
-    assert.match(r.body.error, /tiempo/i);
+    assert.match(r.body.error, /cerrado/i);
+  } finally {
+    Date.now = realNow;
+  }
+});
+
+
+test('Votos de tarjetas y acciones siguen habilitados con tiempo terminado', async () => {
+  const adminCid = 'admin-vote-ended-11112222';
+  const p1 = 'pilot-vote-ended-33334444';
+  const p2 = 'pilot-vote-ended-55556666';
+  await openStreamHello(adminCid);
+  await openStreamHello(p1);
+  await openStreamHello(p2);
+  await request('POST', '/api/admin/claim', { clientId: adminCid, pin: 'sitioBanco' });
+  await request('POST', '/api/board', { clientId: adminCid, active: true });
+  await request('POST', '/api/pilots', { clientId: p1, name: 'Ana', character: '🍄' });
+  await request('POST', '/api/pilots', { clientId: p2, name: 'Beto', character: '🦖' });
+  const started = await request('POST', '/api/timer', { clientId: adminCid, action: 'start', durationSec: 10 });
+  const card = await request('POST', '/api/cards', { clientId: p1, cat: 'banana-past', text: 'respuesta a votar' });
+  assert.strictEqual(card.status, 201);
+  const action = await request('POST', '/api/actions', { clientId: adminCid, text: 'acción a votar' });
+  assert.strictEqual(action.status, 201);
+
+  const realNow = Date.now;
+  Date.now = () => started.body.startedAt + 11_000;
+  try {
+    const like = await request('POST', `/api/cards/banana-past/${card.body.id}/like`, { clientId: p2 });
+    assert.strictEqual(like.status, 200);
+    assert.strictEqual(like.body.likeCount, 1);
+
+    const vote = await request('POST', `/api/actions/${action.body.id}/vote`, { clientId: p2 });
+    assert.strictEqual(vote.status, 200);
+    assert.strictEqual(vote.body.voteCount, 1);
   } finally {
     Date.now = realNow;
   }

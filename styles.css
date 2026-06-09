@@ -30,9 +30,12 @@
 /* ---------- Ruta admin: sin elementos de participante ---------- */
 body.is-admin-route #music-bar,
 body.is-admin-route .hero-participant-actions,
-body.is-admin-route #participant-dashboard {
+body.is-admin-route #participant-dashboard,
+body.is-admin-route #retro,
+body.is-admin-route #mini-race {
   display: none !important;
 }
+body.is-admin-route #mini-race { position: static !important; }
 
 /* ---------- Pasos: locks y estado admin-only ---------- */
 .step { position: relative; }
@@ -497,8 +500,7 @@ body:not(.is-admin) #mini-race { position:static; }
 
 /* ---------- Tablero cerrado por tiempo ---------- */
 body.board-ended .add-form input,
-body.board-ended .add-form button,
-body.board-ended .like-btn {
+body.board-ended .add-form button {
   pointer-events:none;
   opacity:.5;
 }
