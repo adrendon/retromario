@@ -598,6 +598,7 @@ body:not(.is-admin) #como-hacerlo { display: none !important; }
   transform:translateX(-50%) translateY(4px); opacity:0; pointer-events:none;
   background:#111827; color:#fff; border-radius:999px; padding:4px 8px;
   font-size:.68rem; font-family:'JetBrains Mono', monospace; white-space:nowrap;
+  max-width:min(72vw, 24rem); overflow:hidden; text-overflow:ellipsis;
   z-index:30; transition:opacity .15s ease, transform .15s ease;
 }
 .pilot-chip-avatar:hover::after,
@@ -606,6 +607,14 @@ body:not(.is-admin) #como-hacerlo { display: none !important; }
 .race-kart:focus-visible::after {
   opacity:1; transform:translateX(-50%) translateY(0);
 }
+.pilot-chip-avatar.is-tooltip-start::after { left:0; transform:translateY(4px); }
+.pilot-chip-avatar.is-tooltip-start:hover::after,
+.pilot-chip-avatar.is-tooltip-start:focus-visible::after,
+.pilot-chip-avatar.is-tooltip-start.is-tooltip-open::after { transform:translateY(0); }
+.pilot-chip-avatar.is-tooltip-end::after { left:auto; right:0; transform:translateY(4px); }
+.pilot-chip-avatar.is-tooltip-end:hover::after,
+.pilot-chip-avatar.is-tooltip-end:focus-visible::after,
+.pilot-chip-avatar.is-tooltip-end.is-tooltip-open::after { transform:translateY(0); }
 .race-kart .race-kart-name { display:none; }
 body:not(.is-admin) #main-layout { flex-direction:column; }
 body:not(.is-admin) #main-layout > div,
@@ -666,6 +675,10 @@ header .md\:hidden {
 .pilot-chip-avatar.is-tooltip-open::after {
   opacity:1;
   transform:translateX(-50%) translateY(0);
+}
+.pilot-chip-avatar.is-tooltip-start.is-tooltip-open::after,
+.pilot-chip-avatar.is-tooltip-end.is-tooltip-open::after {
+  transform:translateY(0);
 }
 
 @media (min-width: 768px) {
