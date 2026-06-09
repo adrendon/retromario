@@ -1031,12 +1031,20 @@ function renderRace() {
     if (actuallyFinished) kart.classList.add('is-finished');
     if (actuallyFinished && idx === 0) kart.classList.add('is-winner');
     if (!actuallyFinished && Number(s.columns || 0) > 0) kart.classList.add('is-running');
-    const rawPct = (Number(s.columns || 0) / target) * 100;
-    const pct = actuallyFinished ? 72 : Math.max(2, Math.min(65, rawPct * 0.63 + 2));
-    kart.style.left = pct + '%';
 
-    // Anclar tooltip: al inicio (pct <= 15) a la izquierda, en meta lo maneja is-finished en CSS
-    if (pct <= 15) kart.classList.add('is-tooltip-start');
+    if (actuallyFinished) {
+      // Kart en meta: anclado a la derecha para pisar la bandera a cuadros
+      kart.style.left  = 'auto';
+      kart.style.right = '0';
+      kart.classList.add('is-tooltip-start'); // tooltip hacia la izquierda para no salirse
+    } else {
+      // Karts en tránsito: 2% (sin tarjetas) hasta 78% (5/6 columnas)
+      const rawPct = (Number(s.columns || 0) / target) * 100;
+      const pct = Math.max(2, Math.min(78, rawPct * 0.76 + 2));
+      kart.style.left  = pct + '%';
+      kart.style.right = 'auto';
+      if (pct <= 15) kart.classList.add('is-tooltip-start');
+    }
 
     const isMe = currentPilot && s.name.toLowerCase() === currentPilot.name.toLowerCase();
     if (isMe) kart.classList.add('is-me');

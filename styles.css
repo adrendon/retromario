@@ -65,13 +65,10 @@ html {
 }
 
 .retro-carousel {
-  /* Los carruseles también se mueven con flechas; dejamos la barra visible para comunicar que hay más contenido. */
-  overflow-x:auto !important;
+  /* Sin scroll manual: solo navegación por flechas */
+  overflow-x:hidden !important;
   overflow-y:hidden;
-  scrollbar-gutter:stable;
 }
-
-.retro-carousel::-webkit-scrollbar { height:8px; }
 
 .card-list::-webkit-scrollbar,
 .modal::-webkit-scrollbar,
@@ -267,9 +264,13 @@ body:not(.is-admin) .step-check { visibility:hidden; pointer-events:none; }
   background:rgba(0,0,0,.5); color:#fff;
   border-radius:999px; padding:2px 8px;
   font-size:.65rem; font-weight:700; white-space:nowrap;
-  transition:left 1s ease;
+  transition:left 1s ease, right 1s ease;
 }
-.race-kart.is-finished { --kart-x:-100%; }
+/* Kart en meta: anclado a la derecha, pisa la bandera a cuadros */
+.race-kart.is-finished {
+  left:auto !important;
+  right:0 !important;
+}
 .race-kart-name { overflow:hidden; text-overflow:ellipsis; }
 .race-kart.is-me   { background:#facc15; color:#1d2939; outline:2px solid #fff; }
 .race-kart.is-winner { background:#16a34a; color:#fff; }
