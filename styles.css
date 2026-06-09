@@ -761,3 +761,42 @@ body.board-active #race-track,
 }
 body.is-admin-route #mini-race[hidden] { display:none !important; }
 body.is-admin-route #mini-race:not([hidden]) { display:block !important; }
+
+/* ---------- Bloqueos por paso / pausa ---------- */
+.btn-mini.is-feature-locked,
+.step-action.is-feature-locked,
+.actions-list.is-feature-locked {
+  opacity:.55;
+  filter:grayscale(.35);
+}
+.btn-mini.is-feature-locked { cursor:not-allowed; }
+.action-vote-btn:disabled {
+  opacity:.5;
+  cursor:not-allowed;
+  filter:grayscale(.35);
+}
+body.board-paused .add-form input,
+body.board-paused .add-form button[type="submit"] {
+  cursor:not-allowed;
+}
+
+/* Fuego detrás del piloto en carrera y contador visible para mobile. */
+.race-kart .race-fire {
+  order:-1;
+  margin-right:-3px;
+  filter:drop-shadow(0 0 4px rgba(248,113,22,.85));
+  animation:race-fire-flicker .35s ease-in-out infinite alternate;
+}
+.race-kart .race-progress {
+  font-family:'JetBrains Mono', monospace;
+  font-size:.56rem;
+  opacity:.82;
+  margin-left:2px;
+}
+.race-kart .race-finish { font-size:.8rem; }
+.race-lanes.race-density-dense .race-progress,
+.race-lanes.race-density-ultra .race-progress { display:none; }
+@keyframes race-fire-flicker {
+  from { transform:scale(.92) rotate(-8deg); opacity:.8; }
+  to   { transform:scale(1.08) rotate(7deg); opacity:1; }
+}

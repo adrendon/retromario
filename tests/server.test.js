@@ -244,8 +244,23 @@ test('POST /api/cards rechaza cuando terminó el tiempo del tablero', async () =
   }
 });
 
+test('POST /api/cards rechaza cuando el cronómetro está pausado', async () => {
+  const adminCid = 'admin-paused-aabb1100';
+  const pilotCid = 'pilot-paused-ccdd2200';
+  await openStreamHello(adminCid);
+  await openStreamHello(pilotCid);
+  await request('POST', '/api/admin/claim', { clientId: adminCid, pin: 'sitioBanco' });
+  await request('POST', '/api/board', { clientId: adminCid, active: true });
+  await request('POST', '/api/pilots', { clientId: pilotCid, name: 'Paz', character: '🍄' });
+  await request('POST', '/api/timer', { clientId: adminCid, action: 'start', durationSec: 60 });
+  await request('POST', '/api/timer', { clientId: adminCid, action: 'pause' });
 
-test('Votos de tarjetas y acciones siguen habilitados con tiempo terminado', async () => {
+  const r = await request('POST', '/api/cards', { clientId: pilotCid, cat: 'banana-past', text: 'en pausa' });
+  assert.strictEqual(r.status, 409);
+  assert.match(r.body.error, /pausada|cerrado/i);
+});
+
+test('Votos de tarjetas y acciones se bloquean con tiempo terminado', async () => {
   const adminCid = 'admin-vote-ended-11112222';
   const p1 = 'pilot-vote-ended-33334444';
   const p2 = 'pilot-vote-ended-55556666';
@@ -254,6 +269,7 @@ test('Votos de tarjetas y acciones siguen habilitados con tiempo terminado', asy
   await openStreamHello(p2);
   await request('POST', '/api/admin/claim', { clientId: adminCid, pin: 'sitioBanco' });
   await request('POST', '/api/board', { clientId: adminCid, active: true });
+  await request('POST', '/api/steps', { clientId: adminCid, steps: [10] });
   await request('POST', '/api/pilots', { clientId: p1, name: 'Ana', character: '🍄' });
   await request('POST', '/api/pilots', { clientId: p2, name: 'Beto', character: '🦖' });
   const started = await request('POST', '/api/timer', { clientId: adminCid, action: 'start', durationSec: 10 });
@@ -266,12 +282,10 @@ test('Votos de tarjetas y acciones siguen habilitados con tiempo terminado', asy
   Date.now = () => started.body.startedAt + 11_000;
   try {
     const like = await request('POST', `/api/cards/banana-past/${card.body.id}/like`, { clientId: p2 });
-    assert.strictEqual(like.status, 200);
-    assert.strictEqual(like.body.likeCount, 1);
+    assert.strictEqual(like.status, 409);
 
     const vote = await request('POST', `/api/actions/${action.body.id}/vote`, { clientId: p2 });
-    assert.strictEqual(vote.status, 200);
-    assert.strictEqual(vote.body.voteCount, 1);
+    assert.strictEqual(vote.status, 409);
   } finally {
     Date.now = realNow;
   }
