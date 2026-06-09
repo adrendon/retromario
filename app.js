@@ -1259,7 +1259,6 @@ function buildMoodGrid(selected) {
 function openMoodModal() {
   if (!isAdmin && !isStepActive(2)) { toast('El admin debe activar “¿Cómo llegas hoy?” primero 🔒', 'warn'); return; }
   if (!currentPilot) { openJoinModal(); toast('Únete antes de elegir tu ánimo 🏎️', 'warn'); return; }
-  if (!canInteractWithBoard()) { toast(isBoardPaused() ? 'La retro está pausada por admin ⏸️' : 'Aún no está activo', 'warn'); return; }
   const mine = myMood();
   buildMoodGrid(mine ? mine.emoji : MOODS[0].emoji);
   moodModal.hidden = false;
@@ -1273,7 +1272,6 @@ if (moodForm) {
   moodForm.addEventListener('submit', async e => {
     e.preventDefault();
     if (!isAdmin && !isStepActive(2)) { toast('El admin debe activar este paso primero 🔒', 'warn'); return; }
-    if (!canInteractWithBoard()) { toast(isBoardPaused() ? 'La retro está pausada por admin ⏸️' : 'Aún no está activo', 'warn'); return; }
     const checked = moodForm.querySelector('input[name="mood"]:checked');
     if (!checked) return;
     const emoji = checked.value;
@@ -1319,10 +1317,35 @@ if (moodClearBtn) {
   });
 }
 
-function renderMoods() {
-  const targets = [moodsWall, moodsWallInline, adminMoodsWall].filter(Boolean);
-  targets.forEach(t => { t.innerHTML = ''; });
+function moodBubble(m) {
+  const span = document.createElement('span');
+  span.className = 'mood-bubble';
+  if (currentPilot && m.name && m.name.toLowerCase() === currentPilot.name.toLowerCase()) {
+    span.classList.add('is-me');
+  }
+  span.innerHTML = `
+    <span class="mood-emoji">${m.emoji}</span>
+    <span>${(m.character || '')} ${escapeText(m.name || '')}</span>
+    <span class="mood-label">· ${escapeText(m.label || '')}</span>
+  `;
+  return span;
+}
 
+function renderMoodList(targets, list, emptyText) {
+  targets.filter(Boolean).forEach(t => {
+    t.innerHTML = '';
+    if (!list.length) {
+      const empty = document.createElement('span');
+      empty.className = 'step-hint';
+      empty.textContent = emptyText;
+      t.appendChild(empty);
+      return;
+    }
+    list.forEach(m => t.appendChild(moodBubble(m)));
+  });
+}
+
+function renderMoods() {
   const mine = myMood();
   if (myMoodCard) {
     myMoodCard.className = mine ? 'my-mood-card is-filled' : 'participant-empty text-sm text-slate-gray';
@@ -1331,31 +1354,10 @@ function renderMoods() {
       : 'Elige tu estado para aparecer en el muro del equipo.';
   }
 
-  if (!targets.length) return;
-  if (!moods.length) {
-    targets.forEach(t => {
-      const empty = document.createElement('span');
-      empty.className = 'step-hint';
-      empty.textContent = 'Aún nadie ha compartido su ánimo';
-      t.appendChild(empty);
-    });
-    return;
-  }
-  moods.forEach(m => {
-    targets.forEach(t => {
-      const span = document.createElement('span');
-      span.className = 'mood-bubble';
-      if (currentPilot && m.name && m.name.toLowerCase() === currentPilot.name.toLowerCase()) {
-        span.classList.add('is-me');
-      }
-      span.innerHTML = `
-        <span class="mood-emoji">${m.emoji}</span>
-        <span>${(m.character || '')} ${escapeText(m.name || '')}</span>
-        <span class="mood-label">· ${escapeText(m.label || '')}</span>
-      `;
-      t.appendChild(span);
-    });
-  });
+  // El usuario final solo ve su selección; el panel admin sí lista a todo el equipo.
+  const userMoods = mine ? [mine] : [];
+  renderMoodList([moodsWall, moodsWallInline], userMoods, 'Aún no has compartido tu ánimo');
+  renderMoodList([adminMoodsWall], moods, 'Aún nadie ha compartido su ánimo');
 }
 
 /* ---------- PASO 11: acciones con voto ---------- */

@@ -217,6 +217,34 @@ test('Admin puede guardar objetivo sin perder pasos', async () => {
   assert.strictEqual(state.body.objective, 'Mejorar foco del sprint');
 });
 
+test('POST /api/moods permite compartir ánimo con paso 3 activo aunque el tablero esté inactivo', async () => {
+  const adminCid = 'admin-mood-11223344';
+  const pilotCid = 'pilot-mood-55667788';
+  await openStreamHello(adminCid);
+  await openStreamHello(pilotCid);
+  await request('POST', '/api/admin/claim', { clientId: adminCid, pin: 'sitioBanco' });
+  await request('POST', '/api/pilots', { clientId: pilotCid, name: 'Ana', character: '🍄' });
+  await request('POST', '/api/steps', { clientId: adminCid, steps: [0, 1, 2] });
+
+  const r = await request('POST', '/api/moods', { clientId: pilotCid, emoji: '😊', label: 'Optimista' });
+  assert.strictEqual(r.status, 200);
+  assert.deepStrictEqual(r.body.moods, [{ emoji: '😊', label: 'Optimista', name: 'Ana', character: '🍄' }]);
+
+  const state = await request('GET', '/api/state');
+  assert.strictEqual(state.body.boardActive, false);
+  assert.strictEqual(state.body.moods.length, 1);
+});
+
+test('POST /api/moods rechaza cuando el paso 3 no está activo', async () => {
+  const pilotCid = 'pilot-mood-99001122';
+  await openStreamHello(pilotCid);
+  await request('POST', '/api/pilots', { clientId: pilotCid, name: 'Beto', character: '🦖' });
+
+  const r = await request('POST', '/api/moods', { clientId: pilotCid, emoji: '🤔', label: 'Pensativo' });
+  assert.strictEqual(r.status, 409);
+  assert.strictEqual(r.body.error, 'El admin debe activar este paso');
+});
+
 test('POST /api/objective rechaza sin credenciales admin', async () => {
   const r = await request('POST', '/api/objective', { text: 'no autorizado' });
   assert.strictEqual(r.status, 403);
