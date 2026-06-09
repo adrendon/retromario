@@ -46,6 +46,8 @@ const CHARACTERS = [
 
 const SERVER_MODE = location.protocol === 'http:' || location.protocol === 'https:';
 const ADMIN_ROUTE = /^\/admin\/?$/i.test(location.pathname) || location.hash === '#admin';
+// La ruta admin oculta el reproductor y también debe permanecer completamente silenciosa.
+const ADMIN_AUDIO_MUTED = ADMIN_ROUTE;
 document.body.classList.toggle('is-admin-route', ADMIN_ROUTE);
 
 /* ---------- Utilidades ---------- */
@@ -1787,8 +1789,8 @@ function setTrackByIndex(idx) {
   writeSession(MUSIC_TRACK_KEY, TRACKS[i].id);
   renderTrackList();
   if (window.__syncMusicBar) window.__syncMusicBar();
-  // si no está sonando, arranca para feedback inmediato al usuario.
-  if (!musicOn) startMusic();
+  // si no está sonando, arranca para feedback inmediato al usuario (excepto en admin, que es silencioso).
+  if (!musicOn && !ADMIN_AUDIO_MUTED) startMusic();
 }
 function currentTrackIndex() {
   const i = TRACKS.findIndex(t => t.id === currentTrack);
@@ -1904,6 +1906,16 @@ function scheduleLoop() {
 }
 
 function startMusic() {
+  if (ADMIN_AUDIO_MUTED) {
+    musicOn = false;
+    writeSession(MUSIC_KEY, false);
+    clearTimeout(musicTimer);
+    musicTimer = null;
+    stopActiveNotes();
+    syncMusicModal();
+    if (window.__syncMusicBar) window.__syncMusicBar();
+    return;
+  }
   const ctx = ensureAudio();
   if (!ctx) { return; }
   if (ctx.state === 'suspended') ctx.resume();
@@ -2004,6 +2016,7 @@ if (musicBtn) {
 
 /* SFX cortos (también Web Audio) */
 function sfx(notes, type = 'square', baseGain = 0.15) {
+  if (ADMIN_AUDIO_MUTED) return;
   const ctx = ensureAudio();
   if (!ctx) return;
   if (ctx.state === 'suspended') ctx.resume();
@@ -2268,7 +2281,7 @@ function applyTimerState(t) {
   if (timerState.serverNow) timerOffsetMs = Date.now() - timerState.serverNow;
   // Música del cronómetro: usa la pista del tablero solo si el usuario no eligió otra.
   if (timerState.running) {
-    if (!musicOn) startMusic();
+    if (!ADMIN_AUDIO_MUTED && !musicOn) startMusic();
     autoSetTrack('timer');
   } else {
     autoSetTrack('main');
@@ -2624,7 +2637,7 @@ refreshAdminUI = function () {
   connectSSE();
 
   // Estado de música persistido
-  const wantsMusic = readSession(MUSIC_KEY, 'false') === 'true';
+  const wantsMusic = !ADMIN_AUDIO_MUTED && readSession(MUSIC_KEY, 'false') === 'true';
   if (wantsMusic) {
     // Autoplay está bloqueado hasta que haya interacción.
     // Marcamos el botón y esperamos un primer click en cualquier sitio.
