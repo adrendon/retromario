@@ -29,13 +29,7 @@
   font-size:.7rem; background:rgba(0,0,0,.65); color:#fff;
   padding:3px 8px; border-radius:999px; pointer-events:none; z-index:2;
 }
-.step.is-admin-only::after { content:"🔒 Solo admin";
-  position:absolute; top:8px; right:12px;
-  font-size:.7rem; background:rgba(0,0,0,.65); color:#fff;
-  padding:3px 8px; border-radius:999px; pointer-events:none; z-index:2;
-}
-body:not(.is-admin) .step.is-locked::after,
-body:not(.is-admin) .step.is-admin-only::after { display:none !important; }
+body:not(.is-admin) .step.is-locked::after { display:none !important; }
 /* Usuarios ven los pasos pero no pueden marcarlos — solo ocultamos el checkbox */
 body:not(.is-admin) .step-check { visibility:hidden; pointer-events:none; }
 .step.is-checked label { background:linear-gradient(180deg,#f0fff4,#fff) !important; }
@@ -416,7 +410,6 @@ body:not(.is-admin) .step-check { visibility:hidden; pointer-events:none; }
 
 /* ---------- Vista participante ---------- */
 body:not(.is-admin) #como-hacerlo { display: none !important; }
-body:not(.is-admin) #create-race-btn { display: none !important; }
 .participant-empty {
   background:#f8fafc; border:2px dashed #cbd5e1; border-radius:14px;
   padding:14px; min-height:58px; display:flex; align-items:center;
@@ -493,4 +486,49 @@ body.board-ended .like-btn {
   border:2px dashed var(--slate);
   border-radius:14px;
   padding:12px;
+}
+
+/* ---------- Responsive header, board columns and touch tooltips ---------- */
+#pilot-list-mobile,
+header .md\:hidden {
+  overflow:visible !important;
+}
+
+.pilot-chip-avatar.is-tooltip-open::after {
+  opacity:1;
+  transform:translateX(-50%) translateY(0);
+}
+
+@media (min-width: 768px) {
+  #board {
+    grid-auto-columns:calc((100% - 3rem) / 3) !important;
+    padding-left:4px;
+    padding-right:4px;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  #board {
+    grid-auto-columns:calc((100% - 1.5rem) / 2) !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .conn-pill {
+    padding:6px 8px;
+  }
+  .conn-pill .conn-text {
+    position:absolute;
+    width:1px;
+    height:1px;
+    overflow:hidden;
+    clip:rect(0, 0, 0, 0);
+    white-space:nowrap;
+  }
+  #pilots-bar {
+    max-width:260px;
+    gap:8px;
+    padding-left:10px;
+    padding-right:10px;
+  }
 }

@@ -146,7 +146,6 @@
     <h2 id="board-ended-title">⏱️ ¡Tiempo terminado!</h2>
     <p class="modal-lead">El tablero queda cerrado para que nadie pueda escribir tarjetas ni votar hasta que el admin añada más tiempo.</p>
     <div class="board-ended-admin admin-only" hidden>
-      <p class="font-mono text-[10px] uppercase text-slate-gray mb-2">Solo admin</p>
       <div class="modal-actions" style="justify-content:flex-start;margin-top:0">
         <button type="button" class="btn btn-primary" id="admin-add-5min">➕ Añadir 5 min</button>
         <button type="button" class="btn-mini" id="admin-close-ended">Cerrar</button>
@@ -184,9 +183,7 @@
         <span class="conn-dot" aria-hidden="true"></span>
         <span class="conn-text">Conectando…</span>
       </span>
-      <button id="create-race-btn" hidden class="admin-only sm:flex items-center bg-mario-red text-white font-mono text-xs px-4 py-2 rounded-full border-2 border-slate-gray shadow-retro-sm active:translate-y-0.5 active:shadow-none transition-all">🏁 Empezar carrera</button>
       <button id="admin-toggle-btn" type="button" class="w-10 h-10 rounded-full border-2 border-slate-gray bg-white flex items-center justify-center text-lg hover:bg-surface-low" title="Modo admin">🔑</button>
-      <span id="admin-tag" hidden class="font-mono text-[10px] bg-star-gold text-ink-black px-2 py-1 rounded-full border-2 border-slate-gray">👑 Admin</span>
     </div>
   </div>
 
@@ -625,7 +622,6 @@
             <p class="font-mono text-[10px] uppercase text-slate-gray">Panel admin</p>
             <h3 class="font-display font-bold text-base">👑 Controles de carrera</h3>
           </div>
-          <span class="font-mono text-[10px] bg-star-gold text-ink-black px-2 py-1 rounded-full border-2 border-slate-gray">Solo admin</span>
         </div>
         <label class="flex flex-col gap-1">
           <span class="font-mono text-[10px] text-slate-gray uppercase">Sprint #</span>
