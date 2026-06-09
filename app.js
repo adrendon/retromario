@@ -1017,6 +1017,12 @@ function renderRace() {
     const lane = document.createElement('div');
     lane.className = 'race-lane';
 
+    const shouldSideLabel = standings.length > 4;
+    if (shouldSideLabel) {
+      if (idx === 0) lane.classList.add('race-lane-label-right');
+      if (idx === standings.length - 1) lane.classList.add('race-lane-label-left');
+    }
+
     const kart = document.createElement('div');
     kart.className = 'race-kart';
     const actuallyFinished = !!(s.finished && Number(s.columns || 0) >= target);
@@ -1030,6 +1036,10 @@ function renderRace() {
     if (isMe) kart.classList.add('is-me');
 
     const kartLabel = `${s.character || ''} ${s.name || 'Piloto'}`.trim();
+    if (shouldSideLabel && (idx === 0 || idx === standings.length - 1)) {
+      lane.dataset.pilotName = kartLabel;
+      lane.setAttribute('aria-label', kartLabel);
+    }
     kart.title = kartLabel;
     kart.setAttribute('aria-label', kartLabel);
     kart.dataset.pilotName = kartLabel;

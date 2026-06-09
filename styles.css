@@ -213,6 +213,31 @@ body:not(.is-admin) .step-check { visibility:hidden; pointer-events:none; }
 .race-lanes.race-density-dense .race-kart.is-me,
 .race-lanes.race-density-ultra .race-kart.is-me { outline-width:1px; }
 
+/* Con 5+ pilotos, los extremos de la pista muestran el nombre en un lateral
+   para que no se pierda contra los bordes superior/inferior de la pista. */
+.race-lane-label-right::after,
+.race-lane-label-left::after {
+  content:attr(data-pilot-name);
+  position:absolute;
+  top:50%;
+  max-width:46%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  transform:translateY(-50%);
+  pointer-events:none;
+  background:#111827;
+  color:#fff;
+  border-radius:999px;
+  padding:3px 7px;
+  font-size:.58rem;
+  font-family:'JetBrains Mono', monospace;
+  font-weight:700;
+  z-index:20;
+}
+.race-lane-label-right::after { right:2px; text-align:right; }
+.race-lane-label-left::after { left:2px; text-align:left; }
+
 /* ---------- Podio ---------- */
 .podium-block.podium-1 { height:90px; }
 .podium-block.podium-2 { height:60px; }
