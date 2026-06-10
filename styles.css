@@ -619,8 +619,6 @@ body:not(.is-admin) .step-check { visibility:hidden; pointer-events:none; }
 @media (max-width: 640px) {
   .modal { padding:18px; }
   .modal h2 { font-size:1.15rem; }
-  .race-name,
-  .race-progress { display:none; }
 }
 
 
@@ -667,26 +665,6 @@ body:not(.is-admin) #como-hacerlo { display: none !important; }
 }
 .my-mood-card.is-filled .mood-emoji { font-size:2rem; }
 #actions-board-list .actions-empty { background:#f8fafc; }
-.race-kart { position:relative; }
-.race-kart::after {
-  content:attr(data-pilot-name); position:absolute; left:50%; bottom:calc(100% + 8px);
-  transform:translateX(-50%) translateY(4px); opacity:0; pointer-events:none;
-  background:#111827; color:#fff; border-radius:999px; padding:4px 8px;
-  font-size:.68rem; font-family:'JetBrains Mono', monospace; white-space:nowrap;
-  max-width:min(72vw, 24rem); overflow:hidden; text-overflow:ellipsis;
-  z-index:30; transition:opacity .15s ease, transform .15s ease;
-}
-.race-kart:hover::after,
-.race-kart:focus-visible::after {
-  opacity:1; transform:translateX(-50%) translateY(0);
-}
-/* Tooltip del kart: ancla a izquierda cuando está al inicio, a derecha cuando llegó a la meta */
-.race-kart.is-tooltip-start::after { left:0; transform:translateY(4px); }
-.race-kart.is-tooltip-start:hover::after,
-.race-kart.is-tooltip-start:focus-visible::after { opacity:1; transform:translateY(0); }
-.race-kart.is-finished::after  { left:auto; right:0; transform:translateY(4px); }
-.race-kart.is-finished:hover::after,
-.race-kart.is-finished:focus-visible::after { opacity:1; transform:translateY(0); }
 body:not(.is-admin) #main-layout { flex-direction:column; }
 body:not(.is-admin) #main-layout > div,
 body:not(.is-admin) #main-layout > aside { width:100%; }
@@ -998,13 +976,4 @@ body.is-admin-route #mini-race:not([hidden]) { display:block !important; }
 body.board-paused .add-form input,
 body.board-paused .add-form button[type="submit"] {
   cursor:not-allowed;
-}
-
-
-
-@media (min-width: 768px) {
-  /* En desktop la pista no muestra tooltip sobre los karts; en responsive se mantiene. */
-  .race-kart::after {
-    display: none;
-  }
 }
