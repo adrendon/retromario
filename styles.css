@@ -915,3 +915,10 @@ body.board-paused .add-form button[type="submit"] {
 }
 
 
+
+@media (min-width: 768px) {
+  /* En desktop la pista no muestra tooltip sobre los karts; en responsive se mantiene. */
+  .race-kart::after {
+    display: none;
+  }
+}
