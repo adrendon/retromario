@@ -1095,6 +1095,55 @@ function getRaceDensity(totalPilots) {
   return 'normal';
 }
 
+
+function getRaceTrackPaddingPx() {
+  if (!raceTrack || typeof getComputedStyle !== 'function') return { left: 0, right: 0 };
+  const styles = getComputedStyle(raceTrack);
+  return {
+    left: Number.parseFloat(styles.paddingLeft) || 0,
+    right: Number.parseFloat(styles.paddingRight) || 0,
+  };
+}
+
+function getRaceFinishWidthPx() {
+  const finishFlag = raceTrack && raceTrack.querySelector('.checkered-flag');
+  return finishFlag ? finishFlag.getBoundingClientRect().width : 0;
+}
+
+function positionRaceKart(kart, lane, columns, target, actuallyFinished) {
+  if (!kart || !lane) return;
+
+  if (actuallyFinished) {
+    // En meta el kart sí pisa la bandera: CSS lo ancla al borde derecho.
+    kart.style.left = '100%';
+    kart.style.right = 'auto';
+    kart.classList.add('is-tooltip-start');
+    return;
+  }
+
+  const safeTarget = Math.max(1, Number(target) || 1);
+  const safeColumns = Math.min(safeTarget - 1, Math.max(0, Number(columns) || 0));
+  const laneWidth = lane.getBoundingClientRect().width || lane.clientWidth || 0;
+  const kartWidth = kart.getBoundingClientRect().width || kart.offsetWidth || 0;
+  const trackPadding = getRaceTrackPaddingPx();
+  const finishWidth = getRaceFinishWidthPx();
+  const safetyGap = Math.max(6, Math.min(12, laneWidth * 0.025));
+
+  // En pantallas angostas la bandera consume mucho ancho. Calculamos la recta útil
+  // hasta el inicio de la bandera y dejamos el ancho completo del kart fuera de ella.
+  const finishStartInLane = raceTrack
+    ? Math.max(0, (raceTrack.clientWidth || 0) - trackPadding.left - finishWidth)
+    : laneWidth;
+  const maxLeftBeforeFinish = Math.max(0, Math.min(laneWidth, finishStartInLane) - kartWidth - safetyGap);
+  const startOffset = Math.min(Math.max(3, laneWidth * 0.01), maxLeftBeforeFinish);
+  const ratio = safeColumns / Math.max(1, safeTarget - 1);
+  const leftPx = startOffset + ((maxLeftBeforeFinish - startOffset) * ratio);
+
+  kart.style.left = `${leftPx}px`;
+  kart.style.right = 'auto';
+  if (leftPx <= Math.max(20, laneWidth * 0.2)) kart.classList.add('is-tooltip-start');
+}
+
 function applyRaceDensity(totalPilots) {
   const density = getRaceDensity(totalPilots);
   [raceTrack, raceLanes, raceResults, podiumStage, podiumLosersWrap].forEach(el => {
@@ -1105,11 +1154,19 @@ function applyRaceDensity(totalPilots) {
   });
 }
 
+let raceResizeTimer = null;
+if (typeof window !== 'undefined') {
+  window.addEventListener('resize', () => {
+    window.clearTimeout(raceResizeTimer);
+    raceResizeTimer = window.setTimeout(() => renderRace(), 120);
+  }, { passive: true });
+}
+
 function applyRaceState(rs) {
   raceState = rs || raceState;
-  renderRace();
-  // Ajusta visibilidad de la sección según boardActive + tarjetas
+  // La pista debe estar visible antes de medir carriles en responsive.
   if (typeof updateRaceVisibility === 'function') updateRaceVisibility();
+  renderRace();
   // SFX silencioso al primer ganador detectado: no mostrar alertas/toasts al usuario final.
   if (raceState.winner) {
     const key = raceState.winner.name.toLowerCase();
@@ -1153,24 +1210,11 @@ function renderRace() {
     if (actuallyFinished && idx === 0) kart.classList.add('is-winner');
     if (!actuallyFinished && Number(s.columns || 0) > 0) kart.classList.add('is-running');
 
-    if (actuallyFinished) {
-      // 6/6: left:100% lo pone justo al borde derecho; CSS hace translateX(-100%) para que pise la bandera
-      kart.style.left  = '100%';
-      kart.style.right = 'auto';
-      kart.classList.add('is-tooltip-start');
-    } else {
-      // 0/6 → 1%, 1/6 → 16.67%, 2/6 → 33.33% ... 5/6 → 83.33%
-      const cols = Number(s.columns || 0);
-      const pct  = Math.max(1, (cols / target) * 100);
-      kart.style.left  = pct + '%';
-      kart.style.right = 'auto';
-      if (pct <= 20) kart.classList.add('is-tooltip-start');
-    }
-
     const isMe = currentPilot && s.name.toLowerCase() === currentPilot.name.toLowerCase();
     if (isMe) kart.classList.add('is-me');
 
-    const cols = Math.min(target, Math.max(0, Number(s.columns || 0)));
+    const rawCols = Number(s.columns || 0);
+    const cols = Math.min(target, Math.max(0, rawCols));
     const kartLabel = `${s.character || ''} ${s.name || 'Piloto'}`.trim();
     const progressLabel = `${cols}/${target}`;
     kart.setAttribute('aria-label', `${kartLabel} · ${progressLabel}`);
@@ -1182,6 +1226,7 @@ function renderRace() {
     `;
     lane.appendChild(kart);
     raceLanes.appendChild(lane);
+    positionRaceKart(kart, lane, rawCols, target, actuallyFinished);
   });
 
   // Mensaje de carrera: oculto siempre (lo dicen el podio y los karts)
@@ -2357,9 +2402,13 @@ function applyBoardActive(active) {
 
 function updateRaceVisibility() {
   if (!miniRaceSection) return;
+  const wasHidden = miniRaceSection.hidden;
   // La pista debe aparecer siempre que el tablero esté activo, también en admin
   // y aunque todavía no existan tarjetas/karts en carrera.
   miniRaceSection.hidden = !boardActive;
+  if (wasHidden && boardActive && typeof renderRace === 'function') {
+    window.requestAnimationFrame(() => renderRace());
+  }
 }
 
 /* ---------- Admin ---------- */
