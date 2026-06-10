@@ -1069,11 +1069,17 @@ function renderRace() {
     const isMe = currentPilot && s.name.toLowerCase() === currentPilot.name.toLowerCase();
     if (isMe) kart.classList.add('is-me');
 
+    const cols = Math.min(target, Math.max(0, Number(s.columns || 0)));
     const kartLabel = `${s.character || ''} ${s.name || 'Piloto'}`.trim();
-    kart.title = kartLabel;
-    kart.setAttribute('aria-label', kartLabel);
+    const progressLabel = `${cols}/${target}`;
+    kart.title = `${kartLabel} · ${progressLabel}`;
+    kart.setAttribute('aria-label', `${kartLabel} · ${progressLabel}`);
     kart.dataset.pilotName = kartLabel;
-    kart.innerHTML = `<span class="emoji">${s.character}</span>`;
+    kart.innerHTML = `
+      <span class="emoji" aria-hidden="true">${s.character || '🏎️'}</span>
+      <span class="race-name">${escapeText(s.name || 'Piloto')}</span>
+      <span class="race-progress">${progressLabel}</span>
+    `;
     lane.appendChild(kart);
     raceLanes.appendChild(lane);
   });
