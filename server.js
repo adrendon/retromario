@@ -487,6 +487,19 @@ function featureWritable(index) {
   return boardWritable() && stepActive(index);
 }
 
+function boardReadable() {
+  return !!data.boardActive;
+}
+
+function boardVotingAllowed() {
+  const pausedBeforeEnd = data.timer && data.timer.startedAt && !data.timer.running && !timerExpired();
+  return boardReadable() && !pausedBeforeEnd;
+}
+
+function votingAvailable(index) {
+  return boardVotingAllowed() && stepActive(index);
+}
+
 function timerPublic() {
   const now = Date.now();
   const expired = timerExpired(now);
@@ -666,7 +679,7 @@ async function handleApi(req, res, url) {
     const id  = parts[3];
     if (!CATEGORIES.includes(cat)) return send(res, 404, { error: 'Categoría' });
     if (!data.boardActive) return send(res, 409, { error: 'El tablero no está activo' });
-    if (!boardWritable()) return send(res, 409, { error: data.timer && data.timer.running === false ? 'La retro está pausada por admin' : 'El tablero queda cerrado' });
+    if (!boardVotingAllowed()) return send(res, 409, { error: 'La retro está pausada por admin' });
     const body = await readBody(req);
     const cid = normalizeClientId(body.clientId || req.headers['x-client-id'] || '');
     const pilot = cid ? (livePilots.get(cid) || registeredPilots.get(cid)) : null;
@@ -819,7 +832,7 @@ async function handleApi(req, res, url) {
     const clientId = normalizeClientId(body.clientId);
     const pilot = livePilots.get(clientId);
     if (!pilot) return send(res, 400, { error: 'Únete antes de votar' });
-    if (!featureWritable(5)) return send(res, 409, { error: !stepActive(5) ? 'El admin debe activar las acciones' : 'La retro está pausada o cerrada' });
+    if (!votingAvailable(5)) return send(res, 409, { error: !stepActive(5) ? 'El admin debe activar las acciones' : (!boardReadable() ? 'El tablero no está activo' : 'La retro está pausada por admin') });
     const action = data.actions.find(a => a.id === id);
     if (!action) return send(res, 404, { error: 'Acción no encontrada' });
     if (!action.votes) action.votes = {};

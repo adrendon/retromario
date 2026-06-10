@@ -442,6 +442,10 @@ function canInteractWithBoard() {
   return !!(boardActive && !boardEnded && (!timerHasStarted() || timerState.running));
 }
 
+function canVoteOnBoard() {
+  return !!(boardActive && !isBoardPaused());
+}
+
 function updateFeatureAvailability() {
   const moodActive = isStepActive(2);
   const actionsActive = isStepActive(5);
@@ -1530,7 +1534,7 @@ const actionsClearBtn = document.getElementById('actions-clear');
 function openActionsModal() {
   if (!actionsModal) return;
   if (!isAdmin && !isStepActive(5)) { toast('El admin debe activar “acciones propuestas” primero 🔒', 'warn'); return; }
-  if (!isAdmin && !canInteractWithBoard()) { toast(isBoardPaused() ? 'La retro está pausada por admin ⏸️' : 'Aún no está activo', 'warn'); return; }
+  if (!isAdmin && !canVoteOnBoard()) { toast(isBoardPaused() ? 'La retro está pausada por admin ⏸️' : 'Aún no está activo', 'warn'); return; }
   renderActions();
   actionsModal.hidden = false;
   if (isAdmin) setTimeout(() => actionInput && actionInput.focus(), 50);
@@ -1540,7 +1544,7 @@ function renderActions() {
   if (!actionsList) return;
   actionsList.innerHTML = '';
   if (actionsCount) actionsCount.textContent = String(actions.length);
-  const votingEnabled = isAdmin || (isStepActive(5) && canInteractWithBoard());
+  const votingEnabled = isAdmin || (isStepActive(5) && canVoteOnBoard());
 
   // Sort by vote count desc, then by ts asc
   const sorted = actions.slice().sort((a, b) => (b.voteCount || 0) - (a.voteCount || 0) || a.ts - b.ts);
@@ -1629,7 +1633,7 @@ async function handleActionVoteClick(e) {
     if (voteBtn) {
       if (voteBtn.disabled) return;
       if (!isStepActive(5)) { toast('El admin debe activar las acciones primero 🔒', 'warn'); return; }
-      if (!canInteractWithBoard()) { toast(isBoardPaused() ? 'La retro está pausada por admin ⏸️' : 'Aún no está activo', 'warn'); return; }
+      if (!canVoteOnBoard()) { toast(isBoardPaused() ? 'La retro está pausada por admin ⏸️' : 'Aún no está activo', 'warn'); return; }
       if (!currentPilot) { openJoinModal(); toast('Únete antes de votar 🏎️', 'warn'); return; }
       const id = voteBtn.dataset.id;
       if (SERVER_MODE) {
@@ -2328,6 +2332,7 @@ function applySprint(s) {
 let boardActive = false;
 let boardEnded = false;
 let boardEndedModalShown = false;
+let boardEndedModalDismissed = false;
 const boardEndedModal = document.getElementById('board-ended-modal');
 const adminAdd5MinBtn = document.getElementById('admin-add-5min');
 const adminCloseEndedBtn = document.getElementById('admin-close-ended');
@@ -2470,12 +2475,13 @@ function setBoardEnded(ended, { showModal = true } = {}) {
   document.body.classList.toggle('board-ended', boardEnded);
   updateFormsEnabled();
   updateFeatureAvailability();
-  if (boardEnded && showModal && boardEndedModal && !boardEndedModalShown && !_addingTime) {
+  if (boardEnded && showModal && boardEndedModal && !boardEndedModalShown && !boardEndedModalDismissed && !_addingTime) {
     boardEndedModalShown = true;
     boardEndedModal.hidden = false;
   }
   if (!boardEnded) {
     boardEndedModalShown = false;
+    boardEndedModalDismissed = false;
     if (boardEndedModal) boardEndedModal.hidden = true;
   }
 }
@@ -2519,6 +2525,7 @@ if (adminAdd5MinBtn) adminAdd5MinBtn.addEventListener('click', () => addBoardTim
 if (adminCloseEndedBtn) adminCloseEndedBtn.addEventListener('click', () => {
   if (boardEndedModal) boardEndedModal.hidden = true;
   boardEndedModalShown = false;
+  boardEndedModalDismissed = true;
 });
 
 // Activa/desactiva el tablero + cronómetro cuando el admin marca el paso 5 o el admin usa el botón manual.

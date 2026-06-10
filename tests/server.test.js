@@ -342,7 +342,7 @@ test('POST /api/cards rechaza cuando el cronómetro está pausado', async () => 
   assert.match(r.body.error, /pausada|cerrado/i);
 });
 
-test('Votos de tarjetas y acciones se bloquean con tiempo terminado', async () => {
+test('Votos de tarjetas y acciones siguen habilitados con tiempo terminado', async () => {
   const adminCid = 'admin-vote-ended-11112222';
   const p1 = 'pilot-vote-ended-33334444';
   const p2 = 'pilot-vote-ended-55556666';
@@ -364,10 +364,12 @@ test('Votos de tarjetas y acciones se bloquean con tiempo terminado', async () =
   Date.now = () => started.body.startedAt + 11_000;
   try {
     const like = await request('POST', `/api/cards/banana-past/${card.body.id}/like`, { clientId: p2 });
-    assert.strictEqual(like.status, 409);
+    assert.strictEqual(like.status, 200);
+    assert.strictEqual(like.body.liked, true);
 
     const vote = await request('POST', `/api/actions/${action.body.id}/vote`, { clientId: p2 });
-    assert.strictEqual(vote.status, 409);
+    assert.strictEqual(vote.status, 200);
+    assert.strictEqual(vote.body.voted, true);
   } finally {
     Date.now = realNow;
   }
