@@ -19,6 +19,11 @@ const CATEGORIES = [
   'shortcut-past','banana-past','power-past'
 ];
 
+const EXPORT_CATEGORY_ORDER = [
+  'banana-past','power-past','shortcut-past',
+  'banana-future','power-future','shortcut-future'
+];
+
 const CATEGORY_LABELS = {
   'banana-future':   '🍌 Plátanos en la ruta (riesgos futuros)',
   'shortcut-future': '🗺️ Abreviatura (atajo a probar)',
@@ -669,144 +674,116 @@ document.getElementById('clear-btn').addEventListener('click', async () => {
 });
 
 document.getElementById('export-btn').addEventListener('click', () => {
-  const esc = s => String(s == null ? '' : s)
+  const xmlEsc = value => String(value == null ? '' : value)
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/"/g, '&quot;').replace(/'/g, '&apos;');
   const today = new Date().toLocaleString('es-CO');
   const totalCards = CATEGORIES.reduce((n, c) => n + (cards[c]?.length || 0), 0);
 
   // Pilotos: TODOS los que entraron en esta sesión (vivos + desconectados)
   const pilotsForExcel = (Array.isArray(allPilots) && allPilots.length) ? allPilots : pilots;
+  const exportOrder = EXPORT_CATEGORY_ORDER.filter(cat => CATEGORIES.includes(cat));
 
-  // Cabecera HTML que Excel reconoce como hoja de cálculo
-  const styles = `
-    <style>
-      body { font-family: Segoe UI, Arial, sans-serif; }
-      h1 { color:#e60012; margin:0 0 4px; }
-      h2 { color:#0066c0; margin:24px 0 6px; border-bottom:2px solid #0066c0; padding-bottom:4px; }
-      table { border-collapse: collapse; width: 100%; margin-bottom: 12px; }
-      th, td { border: 1px solid #999; padding: 6px 10px; vertical-align: top; }
-      th { background:#fde047; color:#111; text-align:left; }
-      tr:nth-child(even) td { background:#f7f7f7; }
-      .meta { color:#555; margin-top:18px; font-size:.9rem; }
-      .empty { color:#888; font-style:italic; }
-      .card-author { color:#555; font-size:.85rem; margin-top:4px; display:block; }
-    </style>
-  `;
+  const rows = [];
+  const cell = (value, style = '') => `<Cell${style ? ` ss:StyleID="${style}"` : ''}><Data ss:Type="String">${xmlEsc(value)}</Data></Cell>`;
+  const numberCell = (value, style = '') => `<Cell${style ? ` ss:StyleID="${style}"` : ''}><Data ss:Type="Number">${Number(value) || 0}</Data></Cell>`;
+  const row = cells => rows.push(`<Row>${cells.join('')}</Row>`);
+  const blank = () => rows.push('<Row/>');
+  const section = title => { blank(); row([cell(title, 'section')]); };
 
-  // 1) Encabezado del sprint + lista de pilotos
-  let body = `
-    <h1>🏁 Retro Mario Kart — Sprint ${esc(currentSprint || '')}</h1>
-    <div>
-      <strong>Pilotos:</strong> ${pilotsForExcel.length
-        ? pilotsForExcel.map(p => esc(`${p.character || ''} ${p.name || ''}`.trim())).join(', ')
-        : '<span class="empty">Sin pilotos registrados</span>'}<br>
-      <strong>Total de tarjetas:</strong> ${totalCards}
-    </div>
-  `;
+  row([cell(`🏁 Retro Mario Kart — Sprint ${currentSprint || ''}`, 'title')]);
+  row([cell('Generado'), cell(today)]);
+  row([cell('Pilotos'), cell(pilotsForExcel.length
+    ? pilotsForExcel.map(p => `${p.character || ''} ${p.name || ''}`.trim()).join(', ')
+    : 'Sin pilotos registrados', 'wrap')]);
+  row([cell('Total de tarjetas'), numberCell(totalCards)]);
 
-  // 2) Objetivo
-  body += `<h2>🎯 Objetivo de la retro</h2>`;
-  if (objective && objective.trim()) {
-    body += `<table><tr><td>${esc(objective).replace(/\n/g, '<br>')}</td></tr></table>`;
+  section('🎯 Objetivo de la retro');
+  row([cell(objective && objective.trim() ? objective : 'No se definió un objetivo.', 'wrap')]);
+
+  section('🎮 Estados de ánimo');
+  if (!moods.length) {
+    row([cell('No se registraron estados de ánimo.', 'empty')]);
   } else {
-    body += `<p class="empty">No se definió un objetivo.</p>`;
+    row([cell('Piloto', 'header'), cell('Estado', 'header')]);
+    moods.forEach(m => {
+      row([
+        cell(`${m.character || ''} ${m.name || ''}`.trim() || 'Anónimo'),
+        cell(`${m.emoji || ''} ${m.label || ''}`.trim(), 'wrap')
+      ]);
+    });
   }
 
-  // 3) Tarjetas por categoría — sin columna #, autor debajo del texto
-  body += `<h2>🪧 Tarjetas por categoría</h2>`;
-  CATEGORIES.forEach(cat => {
+  section('🪧 Tarjetas por categoría');
+  exportOrder.forEach(cat => {
     const list = cards[cat] || [];
     const label = CATEGORY_LABELS[cat] || cat;
-    body += `<h3 style="margin:18px 0 4px;color:#111;">${esc(label)}</h3>`;
+    row([cell(label, 'subsection')]);
     if (!list.length) {
-      body += `<p class="empty">(sin tarjetas)</p>`;
+      row([cell('(sin tarjetas)', 'empty')]);
       return;
     }
-    body += `<table><thead><tr><th>Tarjeta</th></tr></thead><tbody>`;
+    row([cell('Tarjeta', 'header')]);
     list.forEach(card => {
-      const author = `${card.character || ''} ${card.author || ''}`.trim();
-      body += `
-        <tr>
-          <td>
-            ${esc(card.text)}
-            <span class="card-author">— ${esc(author) || 'anónimo'}</span>
-          </td>
-        </tr>
-      `;
+      const author = `${card.character || ''} ${card.author || ''}`.trim() || 'anónimo';
+      row([cell(`${card.text || ''}\n— ${author}`, 'wrap')]);
     });
-    body += `</tbody></table>`;
   });
 
-  // 4) Acciones propuestas con votos
-  body += `<h2>🏆 Acciones propuestas y votos</h2>`;
+  section('🏆 Acciones propuestas y votos');
   if (!actions.length) {
-    body += `<p class="empty">No se propusieron acciones.</p>`;
+    row([cell('No se propusieron acciones.', 'empty')]);
   } else {
-    body += `
-      <table>
-        <thead>
-          <tr>
-            <th>Acción</th>
-            <th style="width:18%">Autor</th>
-            <th style="width:8%">Votos</th>
-            <th style="width:30%">Votantes</th>
-          </tr>
-        </thead>
-        <tbody>
-    `;
-    const sorted = actions.slice().sort((a, b) => (b.voteCount || 0) - (a.voteCount || 0));
+    row([cell('Acción', 'header'), cell('Autor', 'header'), cell('Votos', 'header'), cell('Votantes', 'header')]);
+    const sorted = actions.slice().sort((a, b) => (b.voteCount || 0) - (a.voteCount || 0) || a.ts - b.ts);
     sorted.forEach(a => {
       const voters = (a.voterNames && a.voterNames.length)
         ? a.voterNames.map(v => `${v.character || ''} ${v.name || ''}`.trim()).filter(Boolean).join(', ')
-        : '';
-      body += `
-        <tr>
-          <td>${esc(a.text)}</td>
-          <td>${esc(`${a.character || ''} ${a.author || ''}`.trim())}</td>
-          <td>${a.voteCount || 0}</td>
-          <td>${esc(voters) || '<span class="empty">—</span>'}</td>
-        </tr>
-      `;
+        : '—';
+      row([
+        cell(a.text || '', 'wrap'),
+        cell(`${a.character || ''} ${a.author || ''}`.trim()),
+        numberCell(a.voteCount || 0),
+        cell(voters, 'wrap')
+      ]);
     });
-    body += `</tbody></table>`;
   }
 
-  // 5) Fecha al final
-  body += `<div class="meta"><strong>Generado:</strong> ${esc(today)}</div>`;
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:o="urn:schemas-microsoft-com:office:office"
+ xmlns:x="urn:schemas-microsoft-com:office:excel"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:html="http://www.w3.org/TR/REC-html40">
+ <Styles>
+  <Style ss:ID="Default" ss:Name="Normal"><Alignment ss:Vertical="Top"/><Font ss:FontName="Segoe UI" ss:Size="10"/></Style>
+  <Style ss:ID="title"><Font ss:Bold="1" ss:Size="16" ss:Color="#E60012"/></Style>
+  <Style ss:ID="section"><Font ss:Bold="1" ss:Size="13" ss:Color="#0066C0"/><Interior ss:Color="#DCEBFF" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="subsection"><Font ss:Bold="1" ss:Color="#111111"/><Interior ss:Color="#FFF7CC" ss:Pattern="Solid"/></Style>
+  <Style ss:ID="header"><Font ss:Bold="1"/><Interior ss:Color="#FDE047" ss:Pattern="Solid"/><Borders><Border ss:Position="Bottom" ss:LineStyle="Continuous" ss:Weight="1"/></Borders></Style>
+  <Style ss:ID="wrap"><Alignment ss:Vertical="Top" ss:WrapText="1"/></Style>
+  <Style ss:ID="empty"><Font ss:Italic="1" ss:Color="#777777"/></Style>
+ </Styles>
+ <Worksheet ss:Name="Retrospectiva">
+  <Table ss:ExpandedColumnCount="4" ss:ExpandedRowCount="${rows.length}" x:FullColumns="1" x:FullRows="1">
+   <Column ss:Width="360"/>
+   <Column ss:Width="180"/>
+   <Column ss:Width="70"/>
+   <Column ss:Width="260"/>
+   ${rows.join('\n   ')}
+  </Table>
+  <WorksheetOptions xmlns="urn:schemas-microsoft-com:office:excel"><DisplayGridlines/></WorksheetOptions>
+ </Worksheet>
+</Workbook>`;
 
-  const html = `
-    <html xmlns:o="urn:schemas-microsoft-com:office:office"
-          xmlns:x="urn:schemas-microsoft-com:office:excel"
-          xmlns="http://www.w3.org/TR/REC-html40">
-      <head>
-        <meta charset="utf-8">
-        <title>Retro Mario Kart Sprint ${esc(currentSprint || '')}</title>
-        <!--[if gte mso 9]>
-        <xml>
-          <x:ExcelWorkbook>
-            <x:ExcelWorksheets>
-              <x:ExcelWorksheet>
-                <x:Name>Retrospectiva</x:Name>
-                <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
-              </x:ExcelWorksheet>
-            </x:ExcelWorksheets>
-          </x:ExcelWorkbook>
-        </xml>
-        <![endif]-->
-        ${styles}
-      </head>
-      <body>${body}</body>
-    </html>
-  `;
-
-  // BOM para que Excel detecte UTF-8 correctamente (emojis y tildes)
-  const blob = new Blob(['\uFEFF' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+  // SpreadsheetML XML evita la advertencia de Excel por extensión/formato no coincidentes.
+  const blob = new Blob(['\uFEFF' + xml], { type: 'application/xml;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   const sprintForName = (typeof currentSprint === 'string' && currentSprint) ? currentSprint : '000';
-  a.download = `retro-sprint-${sprintForName}.xls`;
+  a.download = `retro-sprint-${sprintForName}.xml`;
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
   URL.revokeObjectURL(url);
   toast('Excel descargado 📊', 'success');
