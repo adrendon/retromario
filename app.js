@@ -444,7 +444,7 @@ function canInteractWithBoard() {
 
 function updateFeatureAvailability() {
   const moodActive = isStepActive(2);
-  const actionsActive = isStepActive(10);
+  const actionsActive = isStepActive(5);
   document.querySelectorAll('[data-opens="mood-modal"]').forEach(btn => {
     btn.disabled = !isAdmin && !moodActive;
     btn.classList.toggle('is-feature-locked', !isAdmin && !moodActive);
@@ -1518,7 +1518,7 @@ function renderMoods() {
   renderMoodList([adminMoodsWall], moods, 'Aún nadie ha compartido su ánimo');
 }
 
-/* ---------- PASO 11: acciones con voto ---------- */
+/* ---------- PASO 6: acciones con voto ---------- */
 const actionsModal    = document.getElementById('actions-modal');
 const actionsForm     = document.getElementById('actions-form');
 const actionInput     = document.getElementById('action-input');
@@ -1529,7 +1529,7 @@ const actionsClearBtn = document.getElementById('actions-clear');
 
 function openActionsModal() {
   if (!actionsModal) return;
-  if (!isAdmin && !isStepActive(10)) { toast('El admin debe activar “acciones propuestas” primero 🔒', 'warn'); return; }
+  if (!isAdmin && !isStepActive(5)) { toast('El admin debe activar “acciones propuestas” primero 🔒', 'warn'); return; }
   if (!isAdmin && !canInteractWithBoard()) { toast(isBoardPaused() ? 'La retro está pausada por admin ⏸️' : 'Aún no está activo', 'warn'); return; }
   renderActions();
   actionsModal.hidden = false;
@@ -1540,7 +1540,7 @@ function renderActions() {
   if (!actionsList) return;
   actionsList.innerHTML = '';
   if (actionsCount) actionsCount.textContent = String(actions.length);
-  const votingEnabled = isAdmin || (isStepActive(10) && canInteractWithBoard());
+  const votingEnabled = isAdmin || (isStepActive(5) && canInteractWithBoard());
 
   // Sort by vote count desc, then by ts asc
   const sorted = actions.slice().sort((a, b) => (b.voteCount || 0) - (a.voteCount || 0) || a.ts - b.ts);
@@ -1628,7 +1628,7 @@ async function handleActionVoteClick(e) {
     const rmBtn   = e.target.closest('.action-remove');
     if (voteBtn) {
       if (voteBtn.disabled) return;
-      if (!isStepActive(10)) { toast('El admin debe activar las acciones primero 🔒', 'warn'); return; }
+      if (!isStepActive(5)) { toast('El admin debe activar las acciones primero 🔒', 'warn'); return; }
       if (!canInteractWithBoard()) { toast(isBoardPaused() ? 'La retro está pausada por admin ⏸️' : 'Aún no está activo', 'warn'); return; }
       if (!currentPilot) { openJoinModal(); toast('Únete antes de votar 🏎️', 'warn'); return; }
       const id = voteBtn.dataset.id;

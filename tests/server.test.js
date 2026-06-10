@@ -351,7 +351,7 @@ test('Votos de tarjetas y acciones se bloquean con tiempo terminado', async () =
   await openStreamHello(p2);
   await request('POST', '/api/admin/claim', { clientId: adminCid, pin: 'sitioBanco' });
   await request('POST', '/api/board', { clientId: adminCid, active: true });
-  await request('POST', '/api/steps', { clientId: adminCid, steps: [10] });
+  await request('POST', '/api/steps', { clientId: adminCid, steps: [5] });
   await request('POST', '/api/pilots', { clientId: p1, name: 'Ana', character: '🍄' });
   await request('POST', '/api/pilots', { clientId: p2, name: 'Beto', character: '🦖' });
   const started = await request('POST', '/api/timer', { clientId: adminCid, action: 'start', durationSec: 10 });

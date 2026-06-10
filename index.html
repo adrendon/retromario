@@ -276,12 +276,12 @@
         <div class="flex items-end justify-between mb-6 md:mb-8 gap-4 flex-wrap">
           <div>
             <h2 class="font-display font-bold text-2xl md:text-3xl">🛣️ Cómo hacerlo</h2>
-            <p class="text-slate-gray text-sm">Sigue estos 12 pasos para guiar al equipo a través de la pista.</p>
+            <p class="text-slate-gray text-sm">Sigue estos 6 pasos para guiar al equipo a través de la pista.</p>
           </div>
           <div class="w-full sm:w-64 shrink-0">
             <div class="flex items-center justify-between mb-1">
               <span class="font-mono text-[10px] text-slate-gray uppercase">Progreso</span>
-              <span id="progress-text" class="text-xs font-bold text-slate-gray">0 / 12 pasos</span>
+              <span id="progress-text" class="text-xs font-bold text-slate-gray">0 / 6 pasos</span>
             </div>
             <div class="relative h-3 bg-surface-high rounded-full overflow-hidden border border-slate-gray/20">
               <div id="progress-fill" class="h-full bg-luigi-green shadow-[0_0_10px_rgba(36,161,72,0.5)] transition-all" style="width:0%"></div>
@@ -350,75 +350,15 @@
                   <input type="checkbox" class="step-check w-5 h-5" />
                 </div>
                 <div class="step-content flex-1">
-                  <h3 class="font-display text-base md:text-lg font-bold mb-2">🍌 Pregunta 1 — Plátanos del pasado (5 min)</h3>
-                  <p class="text-sm text-slate-gray">"¿En qué plátanos nos resbalamos?" Activa el tablero al marcar este paso.</p>
-                </div>
-              </label>
-            </li>
-            <li class="step snap-start">
-              <label class="block bg-white p-5 border-2 border-slate-gray rounded-2xl shadow-retro-sm flex flex-col h-full cursor-pointer hover:-translate-y-0.5 transition-all border-l-8 border-l-toad-blue">
-                <div class="flex justify-between items-start mb-4">
-                  <span class="bg-toad-blue text-white font-mono text-[10px] px-2 py-1 rounded-md">PASO <span class="step-num">6</span></span>
-                  <input type="checkbox" class="step-check w-5 h-5" />
-                </div>
-                <div class="step-content flex-1">
-                  <h3 class="font-display text-base md:text-lg font-bold mb-2">⭐ Pregunta 2 — Potenciador que nos dio ventaja (5 min)</h3>
-                  <p class="text-sm text-slate-gray">"¿Qué potenciador nos dio una ventaja?" Anota prácticas o decisiones que aceleraron.</p>
-                </div>
-              </label>
-            </li>
-            <li class="step snap-start">
-              <label class="block bg-white p-5 border-2 border-slate-gray rounded-2xl shadow-retro-sm flex flex-col h-full cursor-pointer hover:-translate-y-0.5 transition-all border-l-8 border-l-luigi-green">
-                <div class="flex justify-between items-start mb-4">
-                  <span class="bg-luigi-green text-white font-mono text-[10px] px-2 py-1 rounded-md">PASO <span class="step-num">7</span></span>
-                  <input type="checkbox" class="step-check w-5 h-5" />
-                </div>
-                <div class="step-content flex-1">
-                  <h3 class="font-display text-base md:text-lg font-bold mb-2">🛤️ Pregunta 3 — Atajos que funcionaron (5 min)</h3>
-                  <p class="text-sm text-slate-gray">"¿Qué atajos nos ayudaron a la victoria?" Caminos cortos que descubrimos.</p>
-                </div>
-              </label>
-            </li>
-            <li class="step snap-start">
-              <label class="block bg-white p-5 border-2 border-slate-gray rounded-2xl shadow-retro-sm flex flex-col h-full cursor-pointer hover:-translate-y-0.5 transition-all border-l-8 border-l-mario-red">
-                <div class="flex justify-between items-start mb-4">
-                  <span class="bg-mario-red text-white font-mono text-[10px] px-2 py-1 rounded-md">PASO <span class="step-num">8</span></span>
-                  <input type="checkbox" class="step-check w-5 h-5" />
-                </div>
-                <div class="step-content flex-1">
-                  <h3 class="font-display text-base md:text-lg font-bold mb-2">⚠️ Pregunta 4 — Plátanos futuros (5 min)</h3>
-                  <p class="text-sm text-slate-gray">"¿Con qué plátanos tenemos que tener cuidado?" Anticipa riesgos del próximo sprint.</p>
-                </div>
-              </label>
-            </li>
-            <li class="step snap-start">
-              <label class="block bg-white p-5 border-2 border-slate-gray rounded-2xl shadow-retro-sm flex flex-col h-full cursor-pointer hover:-translate-y-0.5 transition-all border-l-8 border-l-toad-blue">
-                <div class="flex justify-between items-start mb-4">
-                  <span class="bg-toad-blue text-white font-mono text-[10px] px-2 py-1 rounded-md">PASO <span class="step-num">9</span></span>
-                  <input type="checkbox" class="step-check w-5 h-5" />
-                </div>
-                <div class="step-content flex-1">
-                  <h3 class="font-display text-base md:text-lg font-bold mb-2">🚀 Pregunta 5 — Potenciador para la victoria (5 min)</h3>
-                  <p class="text-sm text-slate-gray">"¿Qué potenciador podríamos tomar para asegurar nuestra victoria?"</p>
-                </div>
-              </label>
-            </li>
-            <li class="step snap-start">
-              <label class="block bg-white p-5 border-2 border-slate-gray rounded-2xl shadow-retro-sm flex flex-col h-full cursor-pointer hover:-translate-y-0.5 transition-all border-l-8 border-l-luigi-green">
-                <div class="flex justify-between items-start mb-4">
-                  <span class="bg-luigi-green text-white font-mono text-[10px] px-2 py-1 rounded-md">PASO <span class="step-num">10</span></span>
-                  <input type="checkbox" class="step-check w-5 h-5" />
-                </div>
-                <div class="step-content flex-1">
-                  <h3 class="font-display text-base md:text-lg font-bold mb-2">🗺️ Pregunta 6 — Abreviaturas (5 min)</h3>
-                  <p class="text-sm text-slate-gray">"¿Qué abreviatura podríamos usar?" Camino corto para el próximo sprint.</p>
+                  <h3 class="font-display text-base md:text-lg font-bold mb-2">🧩 Responde las preguntas del tablero (30 min)</h3>
+                  <p class="text-sm text-slate-gray">Activa el tablero y responde sus 6 preguntas: plátanos, potenciadores, atajos, riesgos y oportunidades del próximo sprint.</p>
                 </div>
               </label>
             </li>
             <li class="step snap-start">
               <label class="block bg-white p-5 border-2 border-slate-gray rounded-2xl shadow-retro-sm flex flex-col h-full cursor-pointer hover:-translate-y-0.5 transition-all">
                 <div class="flex justify-between items-start mb-4">
-                  <span class="bg-star-gold text-ink-black font-mono text-[10px] px-2 py-1 rounded-md">PASO <span class="step-num">11</span></span>
+                  <span class="bg-star-gold text-ink-black font-mono text-[10px] px-2 py-1 rounded-md">PASO <span class="step-num">6</span></span>
                   <input type="checkbox" class="step-check w-5 h-5" />
                 </div>
                 <div class="step-content flex-1">
@@ -428,25 +368,13 @@
                 <button type="button" class="btn-mini step-action admin-only mt-4 self-start text-xs font-mono bg-star-gold text-ink-black px-3 py-1.5 rounded-full border-2 border-slate-gray shadow-retro-sm" data-opens="actions-modal" hidden>👑 Crear acciones</button>
               </label>
             </li>
-            <li class="step snap-start">
-              <label class="block bg-white p-5 border-2 border-slate-gray rounded-2xl shadow-retro-sm flex flex-col h-full cursor-pointer hover:-translate-y-0.5 transition-all">
-                <div class="flex justify-between items-start mb-4">
-                  <span class="bg-peach-pink text-white font-mono text-[10px] px-2 py-1 rounded-md">PASO <span class="step-num">12</span></span>
-                  <input type="checkbox" class="step-check w-5 h-5" />
-                </div>
-                <div class="step-content flex-1">
-                  <h3 class="font-display text-base md:text-lg font-bold mb-2">🎉 Cierra con un check-out (3 min)</h3>
-                  <p class="text-sm text-slate-gray">Cada persona comparte una palabra sobre cómo se va de la retro. ¡Vuelta de honor!</p>
-                </div>
-              </label>
-            </li>
           </ol>
 
           <div class="flex items-center justify-center gap-3 mt-4">
             <button data-carousel-prev="steps" class="w-10 h-10 rounded-full bg-white border-2 border-slate-gray shadow-retro-sm flex items-center justify-center hover:bg-surface-low transition-all" aria-label="Anterior">
               <span class="material-symbols-outlined">chevron_left</span>
             </button>
-            <span id="steps-carousel-pos" class="font-mono text-xs text-slate-gray">1 / 12</span>
+            <span id="steps-carousel-pos" class="font-mono text-xs text-slate-gray">1 / 6</span>
             <button data-carousel-next="steps" class="w-10 h-10 rounded-full bg-white border-2 border-slate-gray shadow-retro-sm flex items-center justify-center hover:bg-surface-low transition-all" aria-label="Siguiente">
               <span class="material-symbols-outlined">chevron_right</span>
             </button>
@@ -469,7 +397,7 @@
 
             <article class="card-column color-banana-past snap-start flex flex-col min-h-[450px] bg-white rounded-2xl border-2 border-slate-gray border-l-8 border-l-star-gold overflow-hidden shadow-retro-sm">
               <header class="p-4 border-b border-slate-gray/20">
-                <span class="step-badge font-mono text-[10px] text-slate-gray uppercase block">Paso 5</span>
+                <span class="step-badge font-mono text-[10px] text-slate-gray uppercase block">Pregunta 1</span>
                 <h3 class="font-bold text-sm flex items-center gap-2"><span class="col-icon text-lg">🍌</span> Plátanos donde resbalamos</h3>
                 <p class="text-xs text-slate-gray mt-1">¿En qué plátanos nos resbalamos?</p>
               </header>
@@ -482,7 +410,7 @@
 
             <article class="card-column color-power-past snap-start flex flex-col min-h-[450px] bg-white rounded-2xl border-2 border-slate-gray border-l-8 border-l-toad-blue overflow-hidden shadow-retro-sm">
               <header class="p-4 border-b border-slate-gray/20">
-                <span class="step-badge font-mono text-[10px] text-slate-gray uppercase block">Paso 6</span>
+                <span class="step-badge font-mono text-[10px] text-slate-gray uppercase block">Pregunta 2</span>
                 <h3 class="font-bold text-sm flex items-center gap-2"><span class="col-icon text-lg">⭐</span> Potenciador que nos dio ventaja</h3>
                 <p class="text-xs text-slate-gray mt-1">¿Qué potenciador nos dio una ventaja?</p>
               </header>
@@ -495,7 +423,7 @@
 
             <article class="card-column color-shortcut-past snap-start flex flex-col min-h-[450px] bg-white rounded-2xl border-2 border-slate-gray border-l-8 border-l-luigi-green overflow-hidden shadow-retro-sm">
               <header class="p-4 border-b border-slate-gray/20">
-                <span class="step-badge font-mono text-[10px] text-slate-gray uppercase block">Paso 7</span>
+                <span class="step-badge font-mono text-[10px] text-slate-gray uppercase block">Pregunta 3</span>
                 <h3 class="font-bold text-sm flex items-center gap-2"><span class="col-icon text-lg">🛤️</span> Atajos a la victoria</h3>
                 <p class="text-xs text-slate-gray mt-1">¿Qué atajos nos ayudaron a la victoria?</p>
               </header>
@@ -508,7 +436,7 @@
 
             <article class="card-column color-banana-future snap-start flex flex-col min-h-[450px] bg-white rounded-2xl border-2 border-slate-gray border-l-8 border-l-mario-red overflow-hidden shadow-retro-sm">
               <header class="p-4 border-b border-slate-gray/20">
-                <span class="step-badge font-mono text-[10px] text-slate-gray uppercase block">Paso 8</span>
+                <span class="step-badge font-mono text-[10px] text-slate-gray uppercase block">Pregunta 4</span>
                 <h3 class="font-bold text-sm flex items-center gap-2"><span class="col-icon text-lg">🍌</span> Plátanos en la ruta</h3>
                 <p class="text-xs text-slate-gray mt-1">¿Con qué plátanos tenemos que tener cuidado en la ruta?</p>
               </header>
@@ -521,7 +449,7 @@
 
             <article class="card-column color-power-future snap-start flex flex-col min-h-[450px] bg-white rounded-2xl border-2 border-slate-gray border-l-8 border-l-toad-blue overflow-hidden shadow-retro-sm">
               <header class="p-4 border-b border-slate-gray/20">
-                <span class="step-badge font-mono text-[10px] text-slate-gray uppercase block">Paso 9</span>
+                <span class="step-badge font-mono text-[10px] text-slate-gray uppercase block">Pregunta 5</span>
                 <h3 class="font-bold text-sm flex items-center gap-2"><span class="col-icon text-lg">🚀</span> Potenciador para la victoria</h3>
                 <p class="text-xs text-slate-gray mt-1">¿Qué potenciador podríamos tomar para asegurar nuestra victoria?</p>
               </header>
@@ -534,7 +462,7 @@
 
             <article class="card-column color-shortcut-future snap-start flex flex-col min-h-[450px] bg-white rounded-2xl border-2 border-slate-gray border-l-8 border-l-luigi-green overflow-hidden shadow-retro-sm">
               <header class="p-4 border-b border-slate-gray/20">
-                <span class="step-badge font-mono text-[10px] text-slate-gray uppercase block">Paso 10</span>
+                <span class="step-badge font-mono text-[10px] text-slate-gray uppercase block">Pregunta 6</span>
                 <h3 class="font-bold text-sm flex items-center gap-2"><span class="col-icon text-lg">🗺️</span> Abreviatura</h3>
                 <p class="text-xs text-slate-gray mt-1">¿Qué abreviatura podríamos usar?</p>
               </header>
