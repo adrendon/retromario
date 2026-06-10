@@ -452,12 +452,12 @@ function updateFeatureAvailability() {
   document.querySelectorAll('[data-opens="mood-modal"]').forEach(btn => {
     btn.disabled = !isAdmin && !moodActive;
     btn.classList.toggle('is-feature-locked', !isAdmin && !moodActive);
-    btn.title = !isAdmin && !moodActive ? 'El admin debe activar este paso primero' : '';
+    btn.title = !isAdmin && !moodActive ? 'Este paso estará disponible pronto' : '';
   });
   document.querySelectorAll('[data-opens="actions-modal"]').forEach(btn => {
     btn.disabled = !isAdmin && !actionsActive;
     btn.classList.toggle('is-feature-locked', !isAdmin && !actionsActive);
-    btn.title = !isAdmin && !actionsActive ? 'El admin debe activar este paso primero' : '';
+    btn.title = !isAdmin && !actionsActive ? 'Las acciones estarán disponibles' : '';
   });
   document.body.classList.toggle('mood-step-active', moodActive);
   document.body.classList.toggle('actions-step-active', actionsActive);
@@ -1516,7 +1516,7 @@ function buildMoodGrid(selected) {
   });
 }
 function openMoodModal() {
-  if (!isAdmin && !isStepActive(2)) { toast('El admin debe activar “¿Cómo llegas hoy?” primero 🔒', 'warn'); return; }
+  if (!isAdmin && !isStepActive(2)) { toast('Este paso estará disponible pronto 🔒', 'warn'); return; }
   if (!currentPilot) { openJoinModal(); toast('Únete antes de elegir tu ánimo 🏎️', 'warn'); return; }
   const mine = myMood();
   buildMoodGrid(mine ? mine.emoji : MOODS[0].emoji);
@@ -1530,7 +1530,7 @@ if (moodModal) moodModal.addEventListener('click', e => { if (e.target === moodM
 if (moodForm) {
   moodForm.addEventListener('submit', async e => {
     e.preventDefault();
-    if (!isAdmin && !isStepActive(2)) { toast('El admin debe activar este paso primero 🔒', 'warn'); return; }
+    if (!isAdmin && !isStepActive(2)) { toast('Este paso estará disponible pronto 🔒', 'warn'); return; }
     const checked = moodForm.querySelector('input[name="mood"]:checked');
     if (!checked) return;
     const emoji = checked.value;
@@ -1622,7 +1622,7 @@ function renderMoods() {
     myMoodCard.className = mine ? 'my-mood-card is-filled' : 'participant-empty text-sm text-slate-gray';
     myMoodCard.innerHTML = mine
       ? `<span class="mood-emoji">${mine.emoji}</span><span><strong>${escapeText(mine.label || 'Estado elegido')}</strong><br><small>${(mine.character || '')} ${escapeText(mine.name || '')}</small></span>`
-      : 'Elige tu estado para aparecer en el muro del equipo.';
+      : '¿Cómo te sientes hoy?';
   }
 
   // El usuario final ya ve su selección en la tarjeta principal; el muro del modal
@@ -1643,8 +1643,8 @@ const actionsClearBtn = document.getElementById('actions-clear');
 
 function openActionsModal() {
   if (!actionsModal) return;
-  if (!isAdmin && !isStepActive(5)) { toast('El admin debe activar “acciones propuestas” primero 🔒', 'warn'); return; }
-  if (!isAdmin && !canVoteOnBoard()) { toast(isBoardPaused() ? 'La retro está pausada por admin ⏸️' : 'Aún no está activo', 'warn'); return; }
+  if (!isAdmin && !isStepActive(5)) { toast('Las acciones estarán disponibles.', 'warn'); return; }
+  if (!isAdmin && !canVoteOnBoard()) { toast(isBoardPaused() ? 'La retro está pausada ⏸️' : 'Aún no está activo', 'warn'); return; }
   renderActions();
   actionsModal.hidden = false;
   if (isAdmin) setTimeout(() => actionInput && actionInput.focus(), 50);
@@ -1662,7 +1662,7 @@ function renderActions() {
   if (!sorted.length) {
     const li = document.createElement('li');
     li.className = 'actions-empty';
-    li.textContent = votingEnabled ? 'Aún no hay acciones para votar.' : 'El admin activará estas acciones cuando llegue el paso.';
+    li.textContent = votingEnabled ? 'Aún no hay acciones para votar.' : 'Las acciones estarán disponibles.';
     actionsList.appendChild(li);
   } else {
     sorted.forEach((a, idx) => {
@@ -1679,7 +1679,7 @@ function renderActions() {
       li.innerHTML = `
         <span class="action-rank">${rank}</span>
         <span class="action-text">${escapeText(a.text)}</span>
-        <button class="action-vote-btn ${voted ? 'is-voted' : ''}" data-id="${a.id}" type="button" ${votingEnabled ? '' : 'disabled'} title="${votingEnabled ? '' : 'Bloqueado hasta que el admin active el paso'}">
+        <button class="action-vote-btn ${voted ? 'is-voted' : ''}" data-id="${a.id}" type="button" ${votingEnabled ? '' : 'disabled'} title="${votingEnabled ? '' : 'Las acciones estarán disponibles'}">
           <span>${a.voteCount || 0}</span>
         </button>
         ${canRemove ? `<button class="action-remove" data-id="${a.id}" type="button" title="Eliminar mi propuesta">✕</button>` : ''}
@@ -1698,10 +1698,10 @@ function renderActions() {
     const disabled = !isAdmin || actions.length >= 5;
     actionInput.disabled = disabled;
     actionInput.placeholder = !isAdmin
-      ? '🔒 Solo el admin crea acciones…'
+      ? 'Las acciones estarán disponibles.'
       : actions.length >= 5
         ? '✋ Ya hay 5 acciones (máximo)'
-        : 'Escribe una acción para el próximo sprint…';
+        : 'Ej. Alinear criterios antes de iniciar historias…';
     const submitBtn = actionsForm && actionsForm.querySelector('button[type="submit"]');
     if (submitBtn) submitBtn.disabled = disabled;
   }
@@ -1742,8 +1742,8 @@ async function handleActionVoteClick(e) {
     const rmBtn   = e.target.closest('.action-remove');
     if (voteBtn) {
       if (voteBtn.disabled) return;
-      if (!isStepActive(5)) { toast('El admin debe activar las acciones primero 🔒', 'warn'); return; }
-      if (!canVoteOnBoard()) { toast(isBoardPaused() ? 'La retro está pausada por admin ⏸️' : 'Aún no está activo', 'warn'); return; }
+      if (!isStepActive(5)) { toast('Las acciones estarán disponibles.', 'warn'); return; }
+      if (!canVoteOnBoard()) { toast(isBoardPaused() ? 'La retro está pausada ⏸️' : 'Aún no está activo', 'warn'); return; }
       if (!currentPilot) { openJoinModal(); toast('Únete antes de votar 🏎️', 'warn'); return; }
       const id = voteBtn.dataset.id;
       if (SERVER_MODE) {
