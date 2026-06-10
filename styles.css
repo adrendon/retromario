@@ -673,7 +673,6 @@ body:not(.is-admin) #como-hacerlo { display: none !important; }
 .race-kart.is-finished::after  { left:auto; right:0; transform:translateY(4px); }
 .race-kart.is-finished:hover::after,
 .race-kart.is-finished:focus-visible::after { opacity:1; transform:translateY(0); }
-.race-kart .race-kart-name { display:none; }
 body:not(.is-admin) #main-layout { flex-direction:column; }
 body:not(.is-admin) #main-layout > div,
 body:not(.is-admin) #main-layout > aside { width:100%; }
@@ -898,23 +897,10 @@ body.board-paused .add-form button[type="submit"] {
   cursor:not-allowed;
 }
 
-/* Fuego detrás del piloto en carrera y contador visible para mobile. */
-.race-kart .race-fire {
-  order:-1;
-  margin-right:-3px;
-  filter:drop-shadow(0 0 4px rgba(248,113,22,.85));
-  animation:race-fire-flicker .35s ease-in-out infinite alternate;
-}
-.race-kart .race-progress {
-  font-family:'JetBrains Mono', monospace;
-  font-size:.56rem;
-  opacity:.82;
-  margin-left:2px;
-}
-.race-kart .race-finish { font-size:.8rem; }
-.race-lanes.race-density-dense .race-progress,
-.race-lanes.race-density-ultra .race-progress { display:none; }
-@keyframes race-fire-flicker {
-  from { transform:scale(.92) rotate(-8deg); opacity:.8; }
-  to   { transform:scale(1.08) rotate(7deg); opacity:1; }
+
+/* race-kart-name: visible, truncado */
+.race-kart .race-kart-name {
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
 }

@@ -1058,8 +1058,6 @@ function renderRace() {
     kart.innerHTML = `
       <span class="emoji">${s.character}</span>
       <span class="race-kart-name">${escapeText(s.name)}</span>
-      ${actuallyFinished ? '<span class="race-finish" aria-hidden="true">🏁</span>' : '<span class="race-fire" aria-hidden="true">🔥</span>'}
-      <span class="race-progress">${Math.min(target, Number(s.columns || 0))}/${target}</span>
     `;
     lane.appendChild(kart);
     raceLanes.appendChild(lane);
