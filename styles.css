@@ -208,11 +208,17 @@ body:not(.is-admin) .step-check { visibility:hidden; pointer-events:none; }
   border:2px solid #fff; color:#fff;
   display:inline-flex; align-items:center; justify-content:center;
   font-size:.7rem; font-weight:700; box-shadow:0 0 0 1px rgba(85,94,107,.15);
-  cursor:default; line-height:1; overflow:visible;
+  cursor:default; line-height:1; overflow:hidden;
 }
 .pilot-chip-avatar.is-current { outline:2px solid #facc15; }
 .pilot-chip-extra {
-  background:#cbd5e1; color:#1d2939;
+  background:#e2e8f0; color:#1d2939; cursor:pointer; font-family:'JetBrains Mono', monospace;
+  appearance:none; padding:0;
+}
+
+.pilot-chip-extra:hover,
+.pilot-chip-extra:focus-visible {
+  background:#cbd5e1; transform:translateY(-1px);
 }
 .pilot-empty { font-size:.75rem; color:#64748b; padding:0 6px; }
 
@@ -661,9 +667,7 @@ body:not(.is-admin) #como-hacerlo { display: none !important; }
 }
 .my-mood-card.is-filled .mood-emoji { font-size:2rem; }
 #actions-board-list .actions-empty { background:#f8fafc; }
-.pilot-chip-avatar,
 .race-kart { position:relative; }
-.pilot-chip-avatar::after,
 .race-kart::after {
   content:attr(data-pilot-name); position:absolute; left:50%; bottom:calc(100% + 8px);
   transform:translateX(-50%) translateY(4px); opacity:0; pointer-events:none;
@@ -672,20 +676,10 @@ body:not(.is-admin) #como-hacerlo { display: none !important; }
   max-width:min(72vw, 24rem); overflow:hidden; text-overflow:ellipsis;
   z-index:30; transition:opacity .15s ease, transform .15s ease;
 }
-.pilot-chip-avatar:hover::after,
-.pilot-chip-avatar:focus-visible::after,
 .race-kart:hover::after,
 .race-kart:focus-visible::after {
   opacity:1; transform:translateX(-50%) translateY(0);
 }
-.pilot-chip-avatar.is-tooltip-start::after { left:0; transform:translateY(4px); }
-.pilot-chip-avatar.is-tooltip-start:hover::after,
-.pilot-chip-avatar.is-tooltip-start:focus-visible::after,
-.pilot-chip-avatar.is-tooltip-start.is-tooltip-open::after { transform:translateY(0); }
-.pilot-chip-avatar.is-tooltip-end::after { left:auto; right:0; transform:translateY(4px); }
-.pilot-chip-avatar.is-tooltip-end:hover::after,
-.pilot-chip-avatar.is-tooltip-end:focus-visible::after,
-.pilot-chip-avatar.is-tooltip-end.is-tooltip-open::after { transform:translateY(0); }
 /* Tooltip del kart: ancla a izquierda cuando está al inicio, a derecha cuando llegó a la meta */
 .race-kart.is-tooltip-start::after { left:0; transform:translateY(4px); }
 .race-kart.is-tooltip-start:hover::after,
@@ -725,15 +719,35 @@ body:not(.is-admin) #mini-race { position:static; }
 .send-card-btn:disabled { opacity:.45; cursor:not-allowed; transform:none; }
 .card-column { overflow:visible !important; }
 #board { overflow-y:visible; padding-top:4px; padding-bottom:10px; }
-#pilots-bar,
-#pilot-list { overflow:visible !important; }
 #pilot-list,
 #pilot-list-mobile {
-  flex:0 0 auto;
+  flex:1 1 auto;
+  min-width:0;
   flex-wrap:nowrap;
   white-space:nowrap;
+  overflow-x:auto !important;
+  overflow-y:hidden !important;
+  -webkit-overflow-scrolling:touch;
+  scrollbar-width:none;
+  padding:3px 2px;
+  scroll-snap-type:x proximity;
 }
-.pilot-chip-avatar::after { bottom:auto; top:calc(100% + 8px); z-index:80; }
+#pilot-list::-webkit-scrollbar,
+#pilot-list-mobile::-webkit-scrollbar { display:none; }
+#pilot-list.is-expanded,
+#pilot-list-mobile.is-expanded {
+  gap:4px;
+  -webkit-mask-image:linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+  mask-image:linear-gradient(90deg, transparent 0, #000 12px, #000 calc(100% - 12px), transparent 100%);
+}
+#pilot-list .pilot-chip-avatar,
+#pilot-list-mobile .pilot-chip-avatar {
+  scroll-snap-align:center;
+}
+#pilot-list.is-expanded > .pilot-chip-avatar,
+#pilot-list-mobile.is-expanded > .pilot-chip-avatar {
+  margin-left:0 !important;
+}
 
 /* ---------- Tablero cerrado por tiempo ---------- */
 body.board-ended .add-form input,
@@ -749,19 +763,10 @@ body.board-ended .add-form button {
   padding:12px;
 }
 
-/* ---------- Responsive header, board columns and touch tooltips ---------- */
-#pilot-list-mobile,
+/* ---------- Responsive header, board columns and touch sliders ---------- */
 header .md\:hidden {
-  overflow:visible !important;
-}
-
-.pilot-chip-avatar.is-tooltip-open::after {
-  opacity:1;
-  transform:translateX(-50%) translateY(0);
-}
-.pilot-chip-avatar.is-tooltip-start.is-tooltip-open::after,
-.pilot-chip-avatar.is-tooltip-end.is-tooltip-open::after {
-  transform:translateY(0);
+  min-width:0;
+  overflow:hidden !important;
 }
 
 @media (min-width: 768px) {
