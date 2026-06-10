@@ -339,18 +339,27 @@ function renderPilotList(targetId, countId, maxVisible) {
     list.appendChild(empty);
     return;
   }
+
+  // El piloto actual siempre aparece primero
+  const sorted = currentPilot
+    ? [
+        ...pilots.filter(p => p.name.toLowerCase() === currentPilot.name.toLowerCase()),
+        ...pilots.filter(p => p.name.toLowerCase() !== currentPilot.name.toLowerCase())
+      ]
+    : pilots.slice();
+
   const limit = maxVisible || 4;
-  const visiblePilots = pilots.slice(0, limit);
-  const hasExtra = pilots.length > limit;
+  const visiblePilots = sorted.slice(0, limit);
+  const hasExtra = sorted.length > limit;
   visiblePilots.forEach((p, idx) => {
     const tooltipPosition = idx === 0 ? 'start' : (!hasExtra && idx === visiblePilots.length - 1 ? 'end' : 'center');
     list.appendChild(makePilotAvatar(p, idx, { tooltipPosition }));
   });
   if (hasExtra) {
     const extra = document.createElement('span');
-    const extraLabel = pilots.slice(limit).map(p => `${p.character} ${p.name}`).join(' · ');
+    const extraLabel = sorted.slice(limit).map(p => `${p.character} ${p.name}`).join(' · ');
     extra.className = 'pilot-chip-avatar pilot-chip-extra is-tooltip-end';
-    extra.textContent = '+' + (pilots.length - limit);
+    extra.textContent = '+' + (sorted.length - limit);
     extra.title = extraLabel;
     extra.setAttribute('aria-label', extraLabel);
     extra.setAttribute('tabindex', '0');
@@ -1010,8 +1019,17 @@ function renderRace() {
   if (!raceLanes) return;
   raceLanes.innerHTML = '';
   const target = raceState.target || 6;
-  const standings = raceState.standings || [];
-  applyRaceDensity(standings.length);
+  const rawStandings = raceState.standings || [];
+  applyRaceDensity(rawStandings.length);
+
+  // El piloto actual siempre aparece en su propio carril primero;
+  // el resto mantiene el orden de standings (posición en pista).
+  const standings = currentPilot
+    ? [
+        ...rawStandings.filter(s => s.name.toLowerCase() === currentPilot.name.toLowerCase()),
+        ...rawStandings.filter(s => s.name.toLowerCase() !== currentPilot.name.toLowerCase())
+      ]
+    : rawStandings.slice();
 
   if (!standings.length) {
     const e = document.createElement('div');
@@ -2343,7 +2361,7 @@ function setBoardEnded(ended, { showModal = true } = {}) {
   document.body.classList.toggle('board-ended', boardEnded);
   updateFormsEnabled();
   updateFeatureAvailability();
-  if (boardEnded && showModal && boardEndedModal && !boardEndedModalShown) {
+  if (boardEnded && showModal && boardEndedModal && !boardEndedModalShown && !_addingTime) {
     boardEndedModalShown = true;
     boardEndedModal.hidden = false;
   }
@@ -2368,8 +2386,11 @@ function timerRemainingMs() {
   return Math.max(0, totalMs - timerElapsedMs());
 }
 
+let _addingTime = false; // guard para evitar doble modal al añadir tiempo
+
 async function addBoardTime(seconds) {
   if (!isAdmin || !clientId) return;
+  _addingTime = true;
   const elapsedSec = Math.max(0, Math.floor(timerElapsedMs({ includeOvertime: true }) / 1000));
   const remainingSec = Math.max(0, Math.ceil(timerRemainingMs() / 1000));
   const nextDuration = elapsedSec + remainingSec + seconds;
@@ -2383,6 +2404,7 @@ async function addBoardTime(seconds) {
     }
     toast(`Se añadieron ${Math.round(seconds / 60)} min al tablero ⏱️`, 'success');
   } catch { toast('No se pudo añadir tiempo', 'danger'); }
+  finally { setTimeout(() => { _addingTime = false; }, 2000); }
 }
 if (adminAdd5MinBtn) adminAdd5MinBtn.addEventListener('click', () => addBoardTime(5 * 60));
 if (adminCloseEndedBtn) adminCloseEndedBtn.addEventListener('click', () => {
