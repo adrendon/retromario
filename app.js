@@ -685,6 +685,47 @@ document.getElementById('export-btn').addEventListener('click', () => {
   const exportOrder = EXPORT_CATEGORY_ORDER.filter(cat => CATEGORIES.includes(cat));
   const htmlBreaks = value => esc(value).replace(/\n/g, '<br>');
   const pilotLabel = pilot => `${pilot.character || ''} ${pilot.name || ''}`.trim();
+  const normalizeLookupKey = value => String(value == null ? '' : value).trim().toLowerCase();
+  const pilotsByName = new Map();
+  const pilotsByCharacter = new Map();
+  pilotsForExcel.forEach(p => {
+    const nameKey = normalizeLookupKey(p && p.name);
+    const characterKey = normalizeLookupKey(p && p.character);
+    if (nameKey && !pilotsByName.has(nameKey)) pilotsByName.set(nameKey, p);
+    if (characterKey) {
+      if (pilotsByCharacter.has(characterKey)) pilotsByCharacter.set(characterKey, null);
+      else pilotsByCharacter.set(characterKey, p);
+    }
+  });
+  const voterLabel = voter => {
+    if (voter && typeof voter === 'object') {
+      const name = String(voter.name || '').trim();
+      const character = String(voter.character || '').trim();
+      if (name) return `${character} ${name}`.trim();
+      if (character) {
+        const pilot = pilotsByCharacter.get(normalizeLookupKey(character));
+        return pilot ? pilotLabel(pilot) : character;
+      }
+      return '';
+    }
+    const raw = String(voter == null ? '' : voter).trim();
+    if (!raw) return '';
+    const pilotByName = pilotsByName.get(normalizeLookupKey(raw));
+    if (pilotByName) return pilotLabel(pilotByName);
+    const pilotByCharacter = pilotsByCharacter.get(normalizeLookupKey(raw));
+    return pilotByCharacter ? pilotLabel(pilotByCharacter) : raw;
+  };
+  const uniqueVoterLabels = voters => voters
+    .map(voterLabel)
+    .filter(Boolean)
+    .filter((value, index, list) => list.indexOf(value) === index);
+  const votersLabel = action => {
+    const detailedVoters = Array.isArray(action.voterNames) ? action.voterNames : [];
+    const detailedLabels = uniqueVoterLabels(detailedVoters);
+    if (detailedLabels.length) return detailedLabels.join(', ');
+    const fallbackVoters = Array.isArray(action.voters) ? action.voters : [];
+    return uniqueVoterLabels(fallbackVoters).join(', ');
+  };
 
   // Cabecera HTML que Excel reconoce como hoja de cálculo (formato previo .xls)
   const styles = `
@@ -794,9 +835,7 @@ document.getElementById('export-btn').addEventListener('click', () => {
     `;
     const sorted = actions.slice().sort((a, b) => (b.voteCount || 0) - (a.voteCount || 0) || (a.ts || 0) - (b.ts || 0));
     sorted.forEach(a => {
-      const voters = (a.voterNames && a.voterNames.length)
-        ? a.voterNames.map(v => `${v.character || ''} ${v.name || ''}`.trim()).filter(Boolean).join(', ')
-        : '';
+      const voters = votersLabel(a);
       body += `
         <tr>
           <td>${htmlBreaks(a.text || '')}</td>
@@ -1608,8 +1647,14 @@ async function handleActionVoteClick(e) {
         if (!a) return;
         a.voters = a.voters || [];
         const key = currentPilot.name.toLowerCase();
-        if (a.voters.includes(key)) a.voters = a.voters.filter(v => v !== key);
-        else a.voters.push(key);
+        a.voterNames = Array.isArray(a.voterNames) ? a.voterNames : [];
+        if (a.voters.includes(key)) {
+          a.voters = a.voters.filter(v => v !== key);
+          a.voterNames = a.voterNames.filter(v => (v && v.name || '').toLowerCase() !== key);
+        } else {
+          a.voters.push(key);
+          a.voterNames.push({ name: currentPilot.name, character: currentPilot.character });
+        }
         a.voteCount = a.voters.length;
         writeJSON('mario-kart-retro-actions-v1', actions);
         renderActions();
