@@ -283,6 +283,24 @@ body:not(.is-admin) .step-check { visibility:hidden; pointer-events:none; }
 .race-kart.is-me     { background:#facc15; color:#1d2939; outline:2px solid #fff; }
 .race-kart.is-winner { background:#16a34a; color:#fff; }
 .race-kart .emoji    { font-size:.95rem; line-height:1; }
+.race-name {
+  min-width:0;
+  max-width:7.5rem;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-weight:700;
+}
+.race-progress {
+  flex:0 0 auto;
+  margin-left:2px;
+  padding:1px 5px;
+  border-radius:999px;
+  background:rgba(255,255,255,.22);
+  font-family:'JetBrains Mono', monospace;
+  font-size:.62em;
+  font-weight:700;
+}
 .race-empty { font-size:.7rem; color:#fff; padding:8px; text-align:center; opacity:.8; }
 
 /* La mini-pista escala progresivamente para que 6-15 pilotos sigan viéndose. */
@@ -301,6 +319,11 @@ body:not(.is-admin) .step-check { visibility:hidden; pointer-events:none; }
 .race-lanes.race-density-compact .race-kart .emoji { font-size:.78rem; }
 .race-lanes.race-density-dense .race-kart .emoji { font-size:.65rem; }
 .race-lanes.race-density-ultra .race-kart .emoji { font-size:.58rem; }
+.race-lanes.race-density-compact .race-name { max-width:4.8rem; }
+.race-lanes.race-density-dense .race-name { max-width:4rem; }
+.race-lanes.race-density-ultra .race-name { max-width:3.4rem; }
+.race-lanes.race-density-dense .race-progress,
+.race-lanes.race-density-ultra .race-progress { padding:0 3px; }
 .race-lanes.race-density-dense .race-kart.is-me,
 .race-lanes.race-density-ultra .race-kart.is-me { outline-width:1px; }
 
@@ -588,6 +611,8 @@ body:not(.is-admin) .step-check { visibility:hidden; pointer-events:none; }
 @media (max-width: 640px) {
   .modal { padding:18px; }
   .modal h2 { font-size:1.15rem; }
+  .race-name,
+  .race-progress { display:none; }
 }
 
 
