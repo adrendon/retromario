@@ -21,6 +21,10 @@ test.after(() => {
 
 test.beforeEach(() => resetState());
 
+function sleep(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 function request(method, path, body, headers = {}) {
   return new Promise((resolve, reject) => {
     const payload = body == null ? '' : JSON.stringify(body);
@@ -121,6 +125,52 @@ test('POST /api/pilots registra dos pilotos y aparecen en /api/state', async () 
   const state = await request('GET', '/api/state');
   const names = state.body.pilots.map(p => p.name).sort();
   assert.deepStrictEqual(names, ['Ana', 'Beto']);
+});
+
+
+test('POST /api/pilots/leave saca al piloto de activos sin borrar el histórico', async () => {
+  const cid = 'pilot-leave-12345678';
+  await request('POST', '/api/pilots', { clientId: cid, name: 'Luna', character: '🌟' });
+
+  let state = await request('GET', '/api/state');
+  assert.deepStrictEqual(state.body.pilots.map(p => p.name), ['Luna']);
+  assert.deepStrictEqual(state.body.allPilots.map(p => p.name), ['Luna']);
+
+  const leave = await request('POST', '/api/pilots/leave', { clientId: cid });
+  assert.strictEqual(leave.status, 200);
+  await sleep(2200);
+
+  state = await request('GET', '/api/state');
+  assert.deepStrictEqual(state.body.pilots, []);
+  assert.deepStrictEqual(state.body.allPilots.map(p => p.name), ['Luna']);
+});
+
+
+test('POST /api/pilots migra el mismo piloto cuando el navegador genera otro clientId', async () => {
+  const adminCid = 'admin-migrate-pilot-1111';
+  const oldCid = 'pilot-migrate-old-2222';
+  const newCid = 'pilot-migrate-new-3333';
+  await openStreamHello(adminCid);
+  await request('POST', '/api/admin/claim', { clientId: adminCid, pin: 'sitioBanco' });
+  await request('POST', '/api/board', { clientId: adminCid, active: true });
+
+  await request('POST', '/api/pilots', { clientId: oldCid, name: 'Luna', character: '🌟' });
+  const created = await request('POST', '/api/cards', { clientId: oldCid, cat: 'banana-past', text: 'tarjeta antes de reconectar' });
+  assert.strictEqual(created.status, 201);
+
+  await request('POST', '/api/pilots/leave', { clientId: oldCid });
+  await request('POST', '/api/pilots', { clientId: newCid, name: 'Luna', character: '🌟' });
+  await sleep(2200);
+
+  const state = await request('GET', '/api/state');
+  assert.deepStrictEqual(state.body.pilots.map(p => p.name), ['Luna']);
+  assert.deepStrictEqual(state.body.allPilots.map(p => p.name), ['Luna']);
+
+  const stale = await request('POST', '/api/cards', { clientId: oldCid, cat: 'banana-future', text: 'no debe guardar con id viejo' });
+  assert.strictEqual(stale.status, 400);
+
+  const deleted = await request('DELETE', `/api/cards/banana-past/${created.body.id}`, { clientId: newCid });
+  assert.strictEqual(deleted.status, 204);
 });
 
 test('POST /api/admin/claim devuelve adminToken con PIN correcto', async () => {
