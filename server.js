@@ -394,7 +394,8 @@ function publicActions() {
 
 // Devuelve las tarjetas con `likedBy` (array de {name,character}) en lugar de
 // exponer los clientId del objeto interno `likes`.
-function publicCard(card) {
+// Si se pasa forClientId, añade isOwner:true cuando el clientId coincide con el autor.
+function publicCard(card, forClientId) {
   const likesObj = (card && card.likes) || {};
   return {
     id: card.id,
@@ -406,7 +407,8 @@ function publicCard(card) {
     likedBy: Object.values(likesObj).map(v => ({
       name: v && v.name ? v.name : '',
       character: v && v.character ? v.character : ''
-    }))
+    })),
+    ...(forClientId && card.authorClientId === forClientId ? { isOwner: true } : {})
   };
 }
 function publicCards() {
@@ -598,6 +600,7 @@ async function handleApi(req, res, url) {
     const card = {
       id: makeId(),
       text,
+      authorClientId: cid,
       author: pilot.name,
       character: pilot.character || '🍄',
       ts: Date.now(),
@@ -607,7 +610,7 @@ async function handleApi(req, res, url) {
     saveData();
     broadcast('card:add', { cat, card: publicCard(card) });
     broadcastRace();
-    return send(res, 201, publicCard(card));
+    return send(res, 201, publicCard(card, cid));
   }
 
   // DELETE /api/cards/:cat/:id
@@ -615,9 +618,15 @@ async function handleApi(req, res, url) {
     const cat = parts[2];
     const id  = parts[3];
     if (!CATEGORIES.includes(cat)) return send(res, 404, { error: 'Categoría' });
-    const before = data.cards[cat].length;
+    const body = await readBody(req).catch(() => ({}));
+    const cid  = normalizeClientId((body && body.clientId) || req.headers['x-client-id'] || '');
+    const card = (data.cards[cat] || []).find(c => c.id === id);
+    if (!card) return send(res, 404, { error: 'No encontrada' });
+    // Solo el autor original o el admin pueden borrar la tarjeta
+    const isCardAdmin = requireAdmin(req, body);
+    const isAuthor    = cid && card.authorClientId === cid;
+    if (!isAuthor && !isCardAdmin) return send(res, 403, { error: 'Solo el autor puede eliminar su tarjeta' });
     data.cards[cat] = data.cards[cat].filter(c => c.id !== id);
-    if (data.cards[cat].length === before) return send(res, 404, { error: 'No encontrada' });
     saveData();
     broadcast('card:remove', { cat, id });
     broadcastRace();
@@ -673,7 +682,7 @@ async function handleApi(req, res, url) {
 
     // Limpia mismas conexiones con otro nombre (cambió de piloto en esta misma pestaña)
     livePilots.set(clientId, { name, character, joinedAt: Date.now() });
-    everPilots.set(name.toLowerCase(), { name, character });
+    everPilots.set(clientId, { name, character });
     logEvent('pilot_registered', { clientId, name, character });
     broadcast('pilots:update', { pilots: getPilotsList(), allPilots: getAllPilotsList() });
     broadcastRace();

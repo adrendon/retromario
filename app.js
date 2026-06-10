@@ -125,10 +125,12 @@ function renderCategory(cat) {
   cards[cat].forEach(card => {
     const li = document.createElement('li');
     li.dataset.id = card.id;
+    // El botón de borrar solo se muestra al dueño de la tarjeta o al admin
+    const canDelete = !!(isAdmin || card.isOwner);
     li.innerHTML = `
       <div class="card-row">
         <span class="card-text"></span>
-        <button class="delete" title="Eliminar tarjeta" aria-label="Eliminar tarjeta">✕</button>
+        ${canDelete ? '<button class="delete" title="Eliminar tarjeta" aria-label="Eliminar tarjeta">✕</button>' : ''}
       </div>
       <div class="card-meta">
         <span class="char" aria-hidden="true"></span>
