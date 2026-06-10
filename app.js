@@ -1354,6 +1354,8 @@ function renderRace(options = {}) {
     const finishers = sourceFinishers.filter(s => s && s.finished && Number(s.columns || 0) >= target);
     if (!finishers.length) {
       raceResults.hidden = true;
+      raceResults.dataset.podiumKey = '';
+      lastWinnerKey = null;
       return;
     }
 
@@ -1932,6 +1934,8 @@ function connectSSE() {
   es.addEventListener('board:clear', () => {
     CATEGORIES.forEach(c => cards[c] = []);
     renderAll();
+    // Resetear carrera local inmediatamente sin esperar race:update del servidor
+    applyRaceState({ target: 6, standings: [], winner: null, finishers: [] });
   });
   es.addEventListener('pilots:update', e => {
     try {
