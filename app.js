@@ -1033,16 +1033,12 @@ function renderRace() {
     if (!actuallyFinished && Number(s.columns || 0) > 0) kart.classList.add('is-running');
 
     if (actuallyFinished) {
-      // 6/6: el kart pisa la bandera — se posiciona al borde derecho de race-lanes
-      // La bandera (w-14 = 56px) está absolute sobre race-track, no sobre race-lanes,
-      // así que right:0 en race-lanes lo deja justo al límite de la zona de carrera.
-      kart.style.left  = 'auto';
-      kart.style.right = '0';
+      // 6/6: left:100% lo pone justo al borde derecho; CSS hace translateX(-100%) para que pise la bandera
+      kart.style.left  = '100%';
+      kart.style.right = 'auto';
       kart.classList.add('is-tooltip-start');
     } else {
-      // Cálculo limpio: cada columna es 1/6 del ancho disponible (sin offset artificial).
-      // 0/6 → 0%, 1/6 → 16.67%, ... 5/6 → 83.33%
-      // Se deja un margen mínimo de 1% para que el kart no quede pegado al borde izquierdo.
+      // 0/6 → 1%, 1/6 → 16.67%, 2/6 → 33.33% ... 5/6 → 83.33%
       const cols = Number(s.columns || 0);
       const pct  = Math.max(1, (cols / target) * 100);
       kart.style.left  = pct + '%';
@@ -1071,7 +1067,7 @@ function renderRace() {
   if (raceStatus) raceStatus.hidden = true;
   if (raceMsg) raceMsg.innerHTML = '';
 
-  // Podio: sólo aparece cuando ya están definidos 1º, 2º y 3º por llegada real.
+  // Podio: sólo aparece cuando hay finishers. Guard: no re-renderizar si la clave no cambió.
   if (raceResults && podiumStage) {
     const sourceFinishers = (raceState.finishers && raceState.finishers.length)
       ? raceState.finishers
@@ -1081,6 +1077,11 @@ function renderRace() {
       raceResults.hidden = true;
       return;
     }
+
+    // Clave para detectar si el podio cambió — evita re-animar si es el mismo resultado
+    const podiumKey = finishers.slice(0, 3).map(s => s.name).join('|');
+    if (raceResults.dataset.podiumKey === podiumKey && !raceResults.hidden) return;
+    raceResults.dataset.podiumKey = podiumKey;
     raceResults.hidden = false;
 
     // Top 3 por orden de llegada real; los puestos 2º/3º quedan vacíos hasta que crucen meta.
@@ -1098,7 +1099,7 @@ function renderRace() {
       `;
     }
 
-    // Resto fuera del podio (los "llorando afuera")
+    // Resto fuera del podio
     const finishedKeys = new Set(finishers.map(s => String(s.name || '').toLowerCase()));
     const losers = standings.filter(s => !finishedKeys.has(String(s.name || '').toLowerCase())).concat(finishers.slice(3));
     if (!losers.length) {
