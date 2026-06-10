@@ -2339,11 +2339,6 @@ if (adminBoardToggle) {
 
 function setBoardEnded(ended, { showModal = true } = {}) {
   const next = !!ended;
-  if (boardEnded === next && (!next || boardEndedModalShown || !showModal)) {
-    document.body.classList.toggle('board-ended', boardEnded);
-    updateFormsEnabled();
-    return;
-  }
   boardEnded = next;
   document.body.classList.toggle('board-ended', boardEnded);
   updateFormsEnabled();
@@ -2390,7 +2385,10 @@ async function addBoardTime(seconds) {
   } catch { toast('No se pudo añadir tiempo', 'danger'); }
 }
 if (adminAdd5MinBtn) adminAdd5MinBtn.addEventListener('click', () => addBoardTime(5 * 60));
-if (adminCloseEndedBtn) adminCloseEndedBtn.addEventListener('click', () => { if (boardEndedModal) boardEndedModal.hidden = true; });
+if (adminCloseEndedBtn) adminCloseEndedBtn.addEventListener('click', () => {
+  if (boardEndedModal) boardEndedModal.hidden = true;
+  boardEndedModalShown = false;
+});
 
 // Activa/desactiva el tablero + cronómetro cuando el admin marca el paso 5 o el admin usa el botón manual.
 async function handleStep5Change(active) {
