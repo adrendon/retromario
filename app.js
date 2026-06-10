@@ -1198,6 +1198,78 @@ function getRaceRenderKey(target, rawStandings) {
   return JSON.stringify({ target, me, standings: standingsKey, finishers: finishersKey });
 }
 
+function racePilotKey(s) {
+  return String((s && s.name) || '').trim().toLowerCase();
+}
+
+function createRaceLane(key) {
+  const lane = document.createElement('div');
+  lane.className = 'race-lane';
+  lane.dataset.pilotKey = key;
+
+  const kart = document.createElement('div');
+  kart.className = 'race-kart';
+  kart.innerHTML = `
+    <span class="emoji" aria-hidden="true"></span>
+    <span class="race-name"></span>
+    <span class="race-progress"></span>
+  `;
+  lane.appendChild(kart);
+  return lane;
+}
+
+function updateRaceLane(lane, s, idx, target) {
+  const kart = lane && lane.querySelector('.race-kart');
+  if (!kart) return null;
+
+  const rawCols = Number(s.columns || 0);
+  const cols = Math.min(target, Math.max(0, rawCols));
+  const actuallyFinished = !!(s.finished && rawCols >= target);
+  const pilotName = String(s.name || '');
+  const isMe = !!(currentPilot && pilotName.toLowerCase() === currentPilot.name.toLowerCase());
+
+  kart.classList.toggle('is-finished', actuallyFinished);
+  kart.classList.toggle('is-winner', actuallyFinished && idx === 0);
+  kart.classList.toggle('is-running', !actuallyFinished && rawCols > 0);
+  kart.classList.toggle('is-me', isMe);
+  kart.classList.remove('is-tooltip-start');
+
+  const kartLabel = `${s.character || ''} ${pilotName || 'Piloto'}`.trim();
+  const progressLabel = `${cols}/${target}`;
+  kart.setAttribute('aria-label', `${kartLabel} · ${progressLabel}`);
+  kart.dataset.pilotName = kartLabel;
+
+  const emoji = kart.querySelector('.emoji');
+  const name = kart.querySelector('.race-name');
+  const progress = kart.querySelector('.race-progress');
+  if (emoji) emoji.textContent = s.character || '🏎️';
+  if (name) name.textContent = pilotName || 'Piloto';
+  if (progress) progress.textContent = progressLabel;
+
+  return { kart, rawCols, actuallyFinished };
+}
+
+function syncRaceLanes(standings, target) {
+  const existing = new Map();
+  raceLanes.querySelectorAll('.race-lane[data-pilot-key]').forEach(lane => {
+    existing.set(lane.dataset.pilotKey, lane);
+  });
+
+  const nextKeys = new Set(standings.map(racePilotKey));
+  existing.forEach((lane, key) => {
+    if (!nextKeys.has(key)) lane.remove();
+  });
+  raceLanes.querySelectorAll('.race-empty').forEach(el => el.remove());
+
+  standings.forEach((s, idx) => {
+    const key = racePilotKey(s);
+    const lane = existing.get(key) || createRaceLane(key);
+    const positioning = updateRaceLane(lane, s, idx, target);
+    raceLanes.appendChild(lane);
+    if (positioning) positionRaceKart(positioning.kart, lane, positioning.rawCols, target, positioning.actuallyFinished);
+  });
+}
+
 function renderRace(options = {}) {
   if (!raceLanes) return;
   const force = !!options.force;
@@ -1207,13 +1279,14 @@ function renderRace(options = {}) {
   if (!force && lastRaceRenderKey === renderKey && raceLanes.children.length) return;
   lastRaceRenderKey = renderKey;
 
-  raceLanes.innerHTML = '';
   applyRaceDensity(rawStandings.length);
 
-  // La pista respeta el orden de llegada calculado por el servidor.
+  // La pista respeta el orden de llegada calculado por el servidor sin reconstruir
+  // los karts existentes; así avanzar solo desplaza el kart y no “recarga” la pista.
   const standings = rawStandings.slice();
 
   if (!standings.length) {
+    raceLanes.innerHTML = '';
     const e = document.createElement('div');
     e.className = 'race-empty';
     e.textContent = 'Únete a la carrera para aparecer en la pista 🏎️';
@@ -1223,35 +1296,7 @@ function renderRace(options = {}) {
     return;
   }
 
-  standings.forEach((s, idx) => {
-    const lane = document.createElement('div');
-    lane.className = 'race-lane';
-
-    const kart = document.createElement('div');
-    kart.className = 'race-kart';
-    const actuallyFinished = !!(s.finished && Number(s.columns || 0) >= target);
-    if (actuallyFinished) kart.classList.add('is-finished');
-    if (actuallyFinished && idx === 0) kart.classList.add('is-winner');
-    if (!actuallyFinished && Number(s.columns || 0) > 0) kart.classList.add('is-running');
-
-    const isMe = currentPilot && s.name.toLowerCase() === currentPilot.name.toLowerCase();
-    if (isMe) kart.classList.add('is-me');
-
-    const rawCols = Number(s.columns || 0);
-    const cols = Math.min(target, Math.max(0, rawCols));
-    const kartLabel = `${s.character || ''} ${s.name || 'Piloto'}`.trim();
-    const progressLabel = `${cols}/${target}`;
-    kart.setAttribute('aria-label', `${kartLabel} · ${progressLabel}`);
-    kart.dataset.pilotName = kartLabel;
-    kart.innerHTML = `
-      <span class="emoji" aria-hidden="true">${s.character || '🏎️'}</span>
-      <span class="race-name">${escapeText(s.name || 'Piloto')}</span>
-      <span class="race-progress">${progressLabel}</span>
-    `;
-    lane.appendChild(kart);
-    raceLanes.appendChild(lane);
-    positionRaceKart(kart, lane, rawCols, target, actuallyFinished);
-  });
+  syncRaceLanes(standings, target);
 
   // Mensaje de carrera: oculto siempre (lo dicen el podio y los karts)
   if (raceStatus) raceStatus.hidden = true;
