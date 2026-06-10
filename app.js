@@ -1073,10 +1073,7 @@ function renderRace() {
     kart.title = kartLabel;
     kart.setAttribute('aria-label', kartLabel);
     kart.dataset.pilotName = kartLabel;
-    kart.innerHTML = `
-      <span class="emoji">${s.character}</span>
-      <span class="race-kart-name">${escapeText(s.name)}</span>
-    `;
+    kart.innerHTML = `<span class="emoji">${s.character}</span>`;
     lane.appendChild(kart);
     raceLanes.appendChild(lane);
   });

@@ -262,34 +262,27 @@ body:not(.is-admin) .step-check { visibility:hidden; pointer-events:none; }
   position:relative; height:32px; display:flex; align-items:center;
 }
 .race-kart {
-  --kart-x:0;
   position:absolute; left:0; top:0;
-  display:inline-flex; align-items:center; gap:4px;
-  max-width:min(9rem, calc(100% - 1.75rem));
+  display:inline-flex; align-items:center; justify-content:center;
   background:rgba(0,0,0,.5); color:#fff;
   border-radius:999px; padding:2px 8px;
-  font-size:.65rem; font-weight:700; white-space:nowrap;
-  transition:left 1s ease, right 1s ease;
+  font-size:.95rem; line-height:1; white-space:nowrap;
+  transition:left 1s ease;
 }
-/* Kart en meta: left:100% + translateX(-100%) lo ancla al borde derecho de race-lane */
+/* Kart en meta: left:100% + translateX(-100%) lo ancla al borde derecho */
 .race-kart.is-finished {
   left:100% !important;
   right:auto !important;
-  transform:translateX(-100%) !important;
   z-index:5;
-}
-/* Sobreescribir kart-bob para el kart en meta — solo sube/baja sin desplazarse */
-.race-kart.is-finished {
   animation:kart-bob-finish .35s ease-in-out infinite alternate, winner-glow .9s ease-in-out infinite;
 }
 @keyframes kart-bob-finish {
   from { transform:translateX(-100%) translateY(0) rotate(-1deg); }
   to   { transform:translateX(-100%) translateY(-2px) rotate(1deg); }
 }
-.race-kart-name { overflow:hidden; text-overflow:ellipsis; }
-.race-kart.is-me   { background:#facc15; color:#1d2939; outline:2px solid #fff; }
+.race-kart.is-me     { background:#facc15; color:#1d2939; outline:2px solid #fff; }
 .race-kart.is-winner { background:#16a34a; color:#fff; }
-.race-kart .emoji { font-size:.95rem; line-height:1; }
+.race-kart .emoji    { font-size:.95rem; line-height:1; }
 .race-empty { font-size:.7rem; color:#fff; padding:8px; text-align:center; opacity:.8; }
 
 /* La mini-pista escala progresivamente para que 6-15 pilotos sigan viéndose. */
@@ -820,9 +813,6 @@ body.board-active #race-track,
   animation:kart-bob .35s ease-in-out infinite alternate;
   will-change:left, transform;
 }
-.race-kart.is-winner {
-  animation:kart-bob .35s ease-in-out infinite alternate, winner-glow .9s ease-in-out infinite;
-}
 @keyframes kart-bob {
   from { transform:translateY(0) rotate(-1deg); }
   to { transform:translateY(-2px) rotate(1deg); }
@@ -898,9 +888,3 @@ body.board-paused .add-form button[type="submit"] {
 }
 
 
-/* race-kart-name: visible, truncado */
-.race-kart .race-kart-name {
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-}
