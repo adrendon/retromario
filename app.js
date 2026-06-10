@@ -9,6 +9,7 @@ const STEPS_KEY   = 'mario-kart-retro-steps-v1';
 const PILOT_KEY   = 'mario-kart-retro-current-pilot-v1';
 const PILOTS_KEY  = 'mario-kart-retro-pilots-v1';
 const CLIENT_ID_KEY = 'mario-kart-retro-client-id-v1';
+const CARD_HISTORY_KEY = 'mario-kart-retro-owned-card-ids-v1';
 const ADMIN_SESSION_KEY = 'mario-kart-retro-admin-token-v1';
 const ADMIN_PERSIST_KEY = 'mario-kart-retro-admin-token-persistent-v1';
 const ADMIN_CLIENT_ID_KEY = 'mario-kart-retro-admin-client-id-v1';
@@ -85,6 +86,24 @@ function cryptoId() {
   return 'c_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
+function getOwnedCardIds() {
+  const ids = readJSON(CARD_HISTORY_KEY, []);
+  return Array.isArray(ids) ? ids.filter(id => typeof id === 'string' && id) : [];
+}
+function rememberOwnedCardId(id) {
+  if (!id) return;
+  const ids = getOwnedCardIds();
+  if (!ids.includes(id)) {
+    ids.push(id);
+    writeJSON(CARD_HISTORY_KEY, ids.slice(-500));
+  }
+}
+function forgetOwnedCardId(id) {
+  if (!id) return;
+  writeJSON(CARD_HISTORY_KEY, getOwnedCardIds().filter(x => x !== id));
+}
+function hasOwnedCardId(id) { return getOwnedCardIds().includes(id); }
+
 /* ---------- Estado en memoria ---------- */
 function emptyCards() { const o = {}; CATEGORIES.forEach(c => o[c] = []); return o; }
 
@@ -112,8 +131,9 @@ const MOODS = [
 
 let currentPilot = readJSON(PILOT_KEY, null); // identidad local del usuario
 if (!currentPilot) document.body.classList.add('no-pilot');
-let clientId = readSession(CLIENT_ID_KEY, null) || (ADMIN_ROUTE ? readLocalString(ADMIN_CLIENT_ID_KEY, null) : null) || cryptoId();
-writeSession(CLIENT_ID_KEY, clientId);       // estable por pestaña para sobrevivir reconexiones SSE
+let clientId = readLocalString(CLIENT_ID_KEY, null) || readSession(CLIENT_ID_KEY, null) || (ADMIN_ROUTE ? readLocalString(ADMIN_CLIENT_ID_KEY, null) : null) || cryptoId();
+writeSession(CLIENT_ID_KEY, clientId);
+writeLocalString(CLIENT_ID_KEY, clientId);   // estable en el navegador para sobrevivir recargas/reconexiones Render
 let adminToken = readSession(ADMIN_SESSION_KEY, null) || (ADMIN_ROUTE ? readLocalString(ADMIN_PERSIST_KEY, null) : null);
 
 /* ---------- Render: tarjetas ---------- */
@@ -126,7 +146,7 @@ function renderCategory(cat) {
     const li = document.createElement('li');
     li.dataset.id = card.id;
     // El botón de borrar solo se muestra al dueño de la tarjeta o al admin
-    const canDelete = !!(isAdmin || card.isOwner);
+    const canDelete = !!(isAdmin || card.isOwner || hasOwnedCardId(card.id));
     li.innerHTML = `
       <div class="card-row">
         <span class="card-text"></span>
@@ -177,16 +197,29 @@ function renderCategory(cat) {
       } catch { toast('Error al dar me gusta', 'danger'); }
     });
 
-    li.querySelector('.delete').addEventListener('click', async e => {
+    const deleteBtn = li.querySelector('.delete');
+    if (deleteBtn) deleteBtn.addEventListener('click', async e => {
       e.stopPropagation();
       li.classList.add('is-removing');
-      // Actualiza local YA + avisa al servidor
+      // Actualiza local YA + avisa al servidor con el id estable del navegador.
       cards[cat] = cards[cat].filter(c => c.id !== card.id);
       if (SERVER_MODE) {
-        try { await fetch(`/api/cards/${encodeURIComponent(cat)}/${encodeURIComponent(card.id)}`, { method: 'DELETE' }); }
-        catch { toast('No se pudo borrar en el servidor', 'warn'); }
+        try {
+          const r = await fetch(`/api/cards/${encodeURIComponent(cat)}/${encodeURIComponent(card.id)}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json', 'X-Client-Id': clientId || '', 'X-Admin-Token': adminToken || '' },
+            body: JSON.stringify({ clientId, adminToken, ownedCardIds: getOwnedCardIds() })
+          });
+          if (!r.ok && r.status !== 404) {
+            const out = await r.json().catch(() => ({}));
+            toast(out.error || 'No se pudo borrar en el servidor', 'warn');
+          } else {
+            forgetOwnedCardId(card.id);
+          }
+        } catch { toast('No se pudo borrar en el servidor', 'warn'); }
       } else {
         writeJSON(STORAGE_KEY, cards);
+        forgetOwnedCardId(card.id);
       }
       setTimeout(() => { renderCategory(cat); updateCounts(); }, 200);
     });
@@ -457,7 +490,8 @@ function normalizeCards(raw) {
         character: String(item.character || ''),
         ts: item.ts || Date.now(),
         likeCount: Number(item.likeCount || 0),
-        likedBy: Array.isArray(item.likedBy) ? item.likedBy : []
+        likedBy: Array.isArray(item.likedBy) ? item.likedBy : [],
+        isOwner: !!item.isOwner || hasOwnedCardId(item.id)
       };
     });
   });
@@ -490,7 +524,9 @@ function applyServerState(s, { render = true } = {}) {
 
 async function loadInitial() {
   if (SERVER_MODE) {
-    const r = await fetch('/api/state');
+    const r = await fetch(`/api/state?clientId=${encodeURIComponent(clientId || '')}`, {
+      headers: { 'X-Client-Id': clientId || '' }
+    });
     const s = await r.json();
     applyServerState(s, { render: false });
   } else {
@@ -508,6 +544,7 @@ async function loadInitial() {
 
 async function addCard(cat, payload) {
   if (SERVER_MODE) {
+    if (currentPilot) await registerPilot(currentPilot);
     const r = await fetch('/api/cards', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'X-Client-Id': clientId || '' },
@@ -515,6 +552,8 @@ async function addCard(cat, payload) {
     });
     if (!r.ok) throw new Error('addCard');
     const card = await r.json();
+    rememberOwnedCardId(card.id);
+    card.isOwner = true;
     // Insertar local YA (sin esperar al SSE)
     if (!cards[cat].some(c => c.id === card.id)) {
       cards[cat].push(card);
@@ -1637,6 +1676,7 @@ function connectSSE() {
       const { clientId: cid } = JSON.parse(e.data);
       clientId = cid;
       writeSession(CLIENT_ID_KEY, clientId);
+      writeLocalString(CLIENT_ID_KEY, clientId);
       sseRetry = 0;
       setConnState('live');
       if (currentPilot) {
@@ -1729,7 +1769,9 @@ function connectSSE() {
 if (SERVER_MODE) {
   setInterval(async () => {
     try {
-      const r = await fetch('/api/state');
+      const r = await fetch(`/api/state?clientId=${encodeURIComponent(clientId || '')}`, {
+        headers: { 'X-Client-Id': clientId || '' }
+      });
       if (!r.ok) {
         if (connState !== 'live') setConnState('offline');
         return;

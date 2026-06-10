@@ -59,6 +59,9 @@ const adminSessions = new Map();
 // Pilotos en vivo: solo memoria (se vacían al reiniciar y al desconectar)
 // Map<clientId, { name, character, joinedAt }>
 const livePilots = new Map();
+// Pilotos registrados por clientId; no se eliminan al caer SSE para sobrevivir
+// reconexiones/proxies de Render y permitir seguir guardando con el mismo navegador.
+const registeredPilots = new Map();
 
 // Pilotos que en algún momento de esta sesión entraron al server (aunque hayan salido).
 // Sirve para el Excel: queremos listar a TODOS los que participaron.
@@ -237,6 +240,7 @@ function resetState() {
   adminClientId = null;
   adminSessions.clear();
   livePilots.clear();
+  registeredPilots.clear();
   everPilots.clear();
   moods.clear();
   for (const res of clients.values()) { try { res.end(); } catch {} }
@@ -411,17 +415,17 @@ function publicCard(card, forClientId) {
     ...(forClientId && card.authorClientId === forClientId ? { isOwner: true } : {})
   };
 }
-function publicCards() {
+function publicCards(forClientId) {
   const out = {};
   for (const cat of CATEGORIES) {
-    out[cat] = (data.cards[cat] || []).map(publicCard);
+    out[cat] = (data.cards[cat] || []).map(card => publicCard(card, forClientId));
   }
   return out;
 }
 
-function fullState() {
+function fullState(forClientId) {
   return {
-    cards: publicCards(),
+    cards: publicCards(forClientId),
     pilots: getPilotsList(),
     allPilots: getAllPilotsList(),
     steps: data.steps,
@@ -504,7 +508,8 @@ async function handleApi(req, res, url) {
 
   // GET /api/state
   if (req.method === 'GET' && parts.length === 2 && parts[1] === 'state') {
-    return send(res, 200, fullState());
+    const cid = normalizeClientId(url.searchParams.get('clientId') || req.headers['x-client-id'] || '');
+    return send(res, 200, fullState(cid));
   }
 
   // GET /api/health  (observabilidad — sin secretos)
@@ -544,7 +549,7 @@ async function handleApi(req, res, url) {
     });
     // Mensaje inicial: id de cliente + snapshot completo
     res.write(`event: hello\ndata: ${JSON.stringify({ clientId })}\n\n`);
-    res.write(`event: snapshot\ndata: ${JSON.stringify(fullState())}\n\n`);
+    res.write(`event: snapshot\ndata: ${JSON.stringify(fullState(clientId))}\n\n`);
     clients.set(clientId, res);
     logEvent('sse_connected', { clientId, clients: clients.size });
 
@@ -596,7 +601,7 @@ async function handleApi(req, res, url) {
     if (!text) return send(res, 400, { error: 'Texto vacío' });
     // Toma el autor real desde livePilots (no se confía en lo que envía el cliente).
     const cid = normalizeClientId(body.clientId || req.headers['x-client-id'] || '');
-    const pilot = cid ? livePilots.get(cid) : null;
+    const pilot = cid ? (livePilots.get(cid) || registeredPilots.get(cid)) : null;
     if (!pilot) return send(res, 400, { error: 'Únete antes de escribir tarjetas' });
     const card = {
       id: makeId(),
@@ -625,8 +630,10 @@ async function handleApi(req, res, url) {
     if (!card) return send(res, 404, { error: 'No encontrada' });
     // Solo el autor original o el admin pueden borrar la tarjeta
     const isCardAdmin = requireAdmin(req, body);
+    const browserOwnedIds = Array.isArray(body && body.ownedCardIds) ? body.ownedCardIds.map(String) : [];
     const isAuthor    = cid && card.authorClientId === cid;
-    if (!isAuthor && !isCardAdmin) return send(res, 403, { error: 'Solo el autor puede eliminar su tarjeta' });
+    const isBrowserOwner = browserOwnedIds.includes(id);
+    if (!isAuthor && !isBrowserOwner && !isCardAdmin) return send(res, 403, { error: 'Solo el autor puede eliminar su tarjeta' });
     data.cards[cat] = data.cards[cat].filter(c => c.id !== id);
     saveData();
     broadcast('card:remove', { cat, id });
@@ -643,7 +650,7 @@ async function handleApi(req, res, url) {
     if (!boardWritable()) return send(res, 409, { error: data.timer && data.timer.running === false ? 'La retro está pausada por admin' : 'El tablero queda cerrado' });
     const body = await readBody(req);
     const cid = normalizeClientId(body.clientId || req.headers['x-client-id'] || '');
-    const pilot = cid ? livePilots.get(cid) : null;
+    const pilot = cid ? (livePilots.get(cid) || registeredPilots.get(cid)) : null;
     if (!pilot) return send(res, 400, { error: 'Únete antes de dar me gusta' });
     const card = (data.cards[cat] || []).find(c => c.id === id);
     if (!card) return send(res, 404, { error: 'No encontrada' });
@@ -681,9 +688,12 @@ async function handleApi(req, res, url) {
     if (!name)     return send(res, 400, { error: 'Nombre requerido' });
     if (!clientId) return send(res, 400, { error: 'clientId requerido (conéctate al stream primero)' });
 
-    // Limpia mismas conexiones con otro nombre (cambió de piloto en esta misma pestaña)
-    livePilots.set(clientId, { name, character, joinedAt: Date.now() });
-    everPilots.set(clientId, { name, character });
+    // Mantiene el piloto por clientId aunque se caiga SSE (proxies/Render) y
+    // deduplica la lista histórica por nombre para reportes.
+    const pilot = { name, character, joinedAt: Date.now() };
+    livePilots.set(clientId, pilot);
+    registeredPilots.set(clientId, pilot);
+    everPilots.set(name.toLowerCase(), { name, character });
     logEvent('pilot_registered', { clientId, name, character });
     broadcast('pilots:update', { pilots: getPilotsList(), allPilots: getAllPilotsList() });
     broadcastRace();
