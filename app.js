@@ -2725,14 +2725,21 @@ if (adminTimerPause) {
   adminTimerPause.addEventListener('click', async () => {
     if (!isAdmin || !clientId) return;
     const action = timerState.running ? 'pause' : 'resume';
-    try { await adminFetch('/api/timer', { action }); } catch {}
+    try {
+      const r = await adminFetch('/api/timer', { action });
+      if (r.ok) { const t = await r.json().catch(() => null); if (t) applyTimerState(t); }
+    } catch {}
   });
 }
 if (adminTimerReset) {
   adminTimerReset.addEventListener('click', async () => {
     if (!isAdmin || !clientId) return;
     try {
-      await adminFetch('/api/timer', { action: 'reset' });
+      const r = await adminFetch('/api/timer', { action: 'reset' });
+      if (r.ok) {
+        const t = await r.json().catch(() => null);
+        if (t) applyTimerState(t);
+      }
       setBoardEnded(false);
     } catch {}
   });
@@ -2741,7 +2748,10 @@ if (adminTimerSelect) {
   adminTimerSelect.addEventListener('change', async () => {
     if (!isAdmin || !clientId) return;
     const dur = Number(adminTimerSelect.value) || 300;
-    try { await adminFetch('/api/timer', { durationSec: dur }); } catch {}
+    try {
+      const r = await adminFetch('/api/timer', { durationSec: dur });
+      if (r.ok) { const t = await r.json().catch(() => null); if (t) applyTimerState(t); }
+    } catch {}
   });
 }
 
