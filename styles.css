@@ -95,8 +95,14 @@ body.is-admin-route #retro,
 body.is-admin-route #board-timer,
 body.is-admin-route #objective-panel,
 body.is-admin-route [data-opens="mood-modal"],
-body.is-admin-route #mood-modal {
+body.is-admin-route #mood-modal,
+body.is-admin-route .action-vote-btn {
   display: none !important;
+}
+
+/* Pista mobile: solo emoji, sin nombre */
+@media (max-width: 767px) {
+  .race-name { display:none !important; }
 }
 body.is-admin-route #main-layout { flex-direction: column; }
 body.is-admin-route #main-layout > div,
