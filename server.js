@@ -65,7 +65,7 @@ const registeredPilots = new Map();
 
 // Pilotos que en algún momento de esta sesión entraron al server (aunque hayan salido).
 // Sirve para el Excel: queremos listar a TODOS los que participaron.
-// Map<name.toLowerCase(), { name, character }>
+// Map<name.toLowerCase(), { name, character, joinedAt }>
 const everPilots = new Map();
 
 // Moods del rompehielo: solo memoria. Map<clientId, { emoji, label, name, character }>
@@ -87,17 +87,20 @@ const RACE_TARGET = CATEGORIES.length; // 6
 
 function computeRace() {
   const byPilot = new Map(); // key=name.toLowerCase()
-  // Asegura que aparezcan los pilotos aunque no hayan escrito nada
+  // Asegura que aparezcan los pilotos aunque no hayan escrito nada.
   for (const p of getPilotsList()) {
     byPilot.set(p.name.toLowerCase(), {
       name: p.name,
       character: p.character,
+      joinedAt: p.joinedAt || 0,
       cols: new Set(),
       cards: 0,
-      firstAt: 0,
+      cardEvents: [],
+      lastProgressAt: p.joinedAt || 0,
       finishedAt: 0
     });
   }
+
   for (const cat of CATEGORIES) {
     for (const card of data.cards[cat] || []) {
       const author = (card.author || '').toLowerCase();
@@ -109,21 +112,32 @@ function computeRace() {
         entry = {
           name: card.author,
           character: card.character || '🍄',
+          joinedAt: card.ts || 0,
           cols: new Set(),
           cards: 0,
-          firstAt: 0,
+          cardEvents: [],
+          lastProgressAt: card.ts || 0,
           finishedAt: 0
         };
         byPilot.set(author, entry);
       }
       entry.cards += 1;
-      if (!entry.cols.has(cat)) entry.cols.add(cat);
-      if (!entry.firstAt || card.ts < entry.firstAt) entry.firstAt = card.ts;
-      if (entry.cols.size === RACE_TARGET && !entry.finishedAt) {
-        entry.finishedAt = card.ts || Date.now();
+      entry.cardEvents.push({ cat, ts: card.ts || Date.now() });
+    }
+  }
+
+  for (const entry of byPilot.values()) {
+    entry.cardEvents.sort((a, b) => a.ts - b.ts);
+    for (const ev of entry.cardEvents) {
+      const before = entry.cols.size;
+      entry.cols.add(ev.cat);
+      if (entry.cols.size > before) {
+        entry.lastProgressAt = ev.ts;
+        if (entry.cols.size === RACE_TARGET && !entry.finishedAt) entry.finishedAt = ev.ts;
       }
     }
   }
+
   const standings = [...byPilot.values()].map(e => ({
     name: e.name,
     character: e.character,
@@ -131,14 +145,18 @@ function computeRace() {
     cards: e.cards,
     progress: Math.round((e.cols.size / RACE_TARGET) * 100),
     finished: e.cols.size >= RACE_TARGET,
-    finishedAt: e.finishedAt
+    finishedAt: e.finishedAt,
+    lastProgressAt: e.lastProgressAt,
+    joinedAt: e.joinedAt
   }));
   standings.sort((a, b) => {
     if (a.finished && b.finished) return a.finishedAt - b.finishedAt;
     if (a.finished) return -1;
     if (b.finished) return 1;
     if (b.columns !== a.columns) return b.columns - a.columns;
-    return b.cards - a.cards;
+    if ((a.lastProgressAt || 0) !== (b.lastProgressAt || 0)) return (a.lastProgressAt || 0) - (b.lastProgressAt || 0);
+    if ((a.joinedAt || 0) !== (b.joinedAt || 0)) return (a.joinedAt || 0) - (b.joinedAt || 0);
+    return a.name.localeCompare(b.name, 'es');
   });
   // Lista de todos los que terminaron (en orden de llegada) para el podio multi
   const finishers = standings.filter(s => s.finished);
@@ -184,7 +202,8 @@ function loadData() {
         if (v && typeof v === 'object' && v.name) {
           everPilots.set(String(k), {
             name: String(v.name).slice(0, 32),
-            character: String(v.character || '🍄').slice(0, 8)
+            character: String(v.character || '🍄').slice(0, 8),
+            joinedAt: Number(v.joinedAt) || 0
           });
         }
       }
@@ -690,10 +709,11 @@ async function handleApi(req, res, url) {
 
     // Mantiene el piloto por clientId aunque se caiga SSE (proxies/Render) y
     // deduplica la lista histórica por nombre para reportes.
-    const pilot = { name, character, joinedAt: Date.now() };
+    const existing = registeredPilots.get(clientId) || everPilots.get(name.toLowerCase());
+    const pilot = { name, character, joinedAt: (existing && existing.joinedAt) || Date.now() };
     livePilots.set(clientId, pilot);
     registeredPilots.set(clientId, pilot);
-    everPilots.set(name.toLowerCase(), { name, character });
+    everPilots.set(name.toLowerCase(), { name, character, joinedAt: pilot.joinedAt });
     logEvent('pilot_registered', { clientId, name, character });
     broadcast('pilots:update', { pilots: getPilotsList(), allPilots: getAllPilotsList() });
     broadcastRace();

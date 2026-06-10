@@ -543,3 +543,44 @@ test('DELETE /api/cards permite borrar con historial local de ids si cambió el 
   const state = await request('GET', '/api/state');
   assert.deepStrictEqual(state.body.cards['shortcut-past'], []);
 });
+
+test('La carrera ordena los finalistas por la fecha real en que completan la última columna', async () => {
+  const adminCid = 'admin-race-order-1111';
+  const p1 = 'pilot-race-order-2222';
+  const p2 = 'pilot-race-order-3333';
+  await openStreamHello(adminCid);
+  await request('POST', '/api/admin/claim', { clientId: adminCid, pin: 'sitioBanco' });
+  await request('POST', '/api/board', { clientId: adminCid, active: true });
+  await request('POST', '/api/pilots', { clientId: p1, name: 'Ana', character: '🍄' });
+  await request('POST', '/api/pilots', { clientId: p2, name: 'Beto', character: '🦖' });
+
+  const realNow = Date.now;
+  async function cardAt(ts, clientId, cat) {
+    Date.now = () => ts;
+    const r = await request('POST', '/api/cards', { clientId, cat, text: `${clientId}-${cat}` });
+    assert.strictEqual(r.status, 201);
+  }
+
+  try {
+    // Ambos escriben primero en la última categoría del arreglo. Beto completa las 6
+    // columnas antes que Ana, aunque su tarjeta de esa última categoría sea posterior.
+    await cardAt(1000, p1, 'power-past');
+    await cardAt(2000, p2, 'power-past');
+    await cardAt(3000, p1, 'shortcut-future');
+    await cardAt(3100, p1, 'power-future');
+    await cardAt(3200, p1, 'shortcut-past');
+    await cardAt(3300, p1, 'banana-past');
+    await cardAt(4000, p2, 'shortcut-future');
+    await cardAt(4100, p2, 'power-future');
+    await cardAt(4200, p2, 'shortcut-past');
+    await cardAt(4300, p2, 'banana-past');
+    await cardAt(6000, p2, 'banana-future');
+    await cardAt(7000, p1, 'banana-future');
+  } finally {
+    Date.now = realNow;
+  }
+
+  const state = await request('GET', '/api/state');
+  assert.deepStrictEqual(state.body.race.finishers.map(p => p.name), ['Beto', 'Ana']);
+  assert.deepStrictEqual(state.body.race.standings.slice(0, 2).map(p => p.name), ['Beto', 'Ana']);
+});

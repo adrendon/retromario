@@ -833,9 +833,6 @@ function updateProgress() {
       progressKart.classList.add('is-boost');
     }
   }
-  if (pct === 100 && lastPct < 100) {
-    toast('🏆 ¡Vuelta de honor! Completaron todos los pasos.', 'success');
-  }
   lastPct = pct;
 }
 
@@ -1037,16 +1034,11 @@ function applyRaceState(rs) {
   renderRace();
   // Ajusta visibilidad de la sección según boardActive + tarjetas
   if (typeof updateRaceVisibility === 'function') updateRaceVisibility();
-  // SFX al primer ganador detectado
+  // SFX silencioso al primer ganador detectado: no mostrar alertas/toasts al usuario final.
   if (raceState.winner) {
     const key = raceState.winner.name.toLowerCase();
     if (lastWinnerKey !== key) {
       lastWinnerKey = key;
-      if (currentPilot && currentPilot.name.toLowerCase() === key) {
-        toast(`🏆 ¡Ganaste la carrera, ${raceState.winner.character} ${raceState.winner.name}!`, 'success');
-      } else {
-        toast(`🏁 ${raceState.winner.character} ${raceState.winner.name} ganó la carrera`, 'success');
-      }
       window.sfxCoin && window.sfxCoin();
     }
   } else {
@@ -1061,14 +1053,8 @@ function renderRace() {
   const rawStandings = raceState.standings || [];
   applyRaceDensity(rawStandings.length);
 
-  // El piloto actual siempre aparece en su propio carril primero;
-  // el resto mantiene el orden de standings (posición en pista).
-  const standings = currentPilot
-    ? [
-        ...rawStandings.filter(s => s.name.toLowerCase() === currentPilot.name.toLowerCase()),
-        ...rawStandings.filter(s => s.name.toLowerCase() !== currentPilot.name.toLowerCase())
-      ]
-    : rawStandings.slice();
+  // La pista respeta el orden de llegada calculado por el servidor.
+  const standings = rawStandings.slice();
 
   if (!standings.length) {
     const e = document.createElement('div');
@@ -1111,7 +1097,6 @@ function renderRace() {
     const cols = Math.min(target, Math.max(0, Number(s.columns || 0)));
     const kartLabel = `${s.character || ''} ${s.name || 'Piloto'}`.trim();
     const progressLabel = `${cols}/${target}`;
-    kart.title = `${kartLabel} · ${progressLabel}`;
     kart.setAttribute('aria-label', `${kartLabel} · ${progressLabel}`);
     kart.dataset.pilotName = kartLabel;
     kart.innerHTML = `
@@ -1498,17 +1483,14 @@ function renderActions() {
         else if (idx === 1) li.classList.add('rank-2');
         else if (idx === 2) li.classList.add('rank-3');
       }
-      const medal = idx === 0 && a.voteCount > 0 ? '🥇' : idx === 1 && a.voteCount > 0 ? '🥈' : idx === 2 && a.voteCount > 0 ? '🥉' : `${idx + 1}º`;
+      const rank = `${idx + 1}º`;
       const voted = !!(clientId && Array.isArray(a.voters) && a.voters.includes(clientId));
       const canRemove = !!(typeof isAdmin !== 'undefined' && isAdmin);
       li.innerHTML = `
-        <span class="action-rank">${medal}</span>
-        <span class="action-text">
-          ${escapeText(a.text)}
-          <small>${a.character || ''} ${escapeText(a.author || 'Anónimo')}</small>
-        </span>
+        <span class="action-rank">${rank}</span>
+        <span class="action-text">${escapeText(a.text)}</span>
         <button class="action-vote-btn ${voted ? 'is-voted' : ''}" data-id="${a.id}" type="button" ${votingEnabled ? '' : 'disabled'} title="${votingEnabled ? '' : 'Bloqueado hasta que el admin active el paso'}">
-          ${voted ? '✅' : '👍'} <span>${a.voteCount || 0}</span>
+          <span>${a.voteCount || 0}</span>
         </button>
         ${canRemove ? `<button class="action-remove" data-id="${a.id}" type="button" title="Eliminar mi propuesta">✕</button>` : ''}
       `;
