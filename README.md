@@ -23,7 +23,7 @@ Variables de entorno opcionales:
 - Entra por `/admin` y escribe el PIN. La sesión admin se guarda en `sessionStorage` con un token y dura mientras el servidor siga vivo (máx. 12 h), así que recargar la página no obliga a poner el PIN otra vez.
 - Solo el admin puede:
   - Cambiar el número de sprint.
-  - Marcar los 12 pasos de la dinámica.
+  - Marcar los 6 pasos de la dinámica.
   - Activar el tablero (al marcar el paso 5) y arrancar el cronómetro (3/5/10 min).
   - Añadir/borrar acciones del próximo sprint.
   - Descargar el Excel y limpiar el tablero.
@@ -31,8 +31,8 @@ Variables de entorno opcionales:
 ## Jugadores
 
 - Eligen personaje y nombre.
-- Ven los pasos y, cuando el admin activa el paso 5, el tablero de tarjetas con cronómetro.
-- Pueden compartir su ánimo (paso 3) y votar acciones (paso 11).
+- Ven los pasos y, cuando el admin activa el paso 5, el tablero de tarjetas con sus 6 preguntas y cronómetro.
+- Pueden compartir su ánimo (paso 3) y votar acciones (paso 6).
 
 ## Arquitectura en una línea
 

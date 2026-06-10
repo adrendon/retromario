@@ -819,7 +819,7 @@ async function handleApi(req, res, url) {
     const clientId = normalizeClientId(body.clientId);
     const pilot = livePilots.get(clientId);
     if (!pilot) return send(res, 400, { error: 'Únete antes de votar' });
-    if (!featureWritable(10)) return send(res, 409, { error: !stepActive(10) ? 'El admin debe activar las acciones' : 'La retro está pausada o cerrada' });
+    if (!featureWritable(5)) return send(res, 409, { error: !stepActive(5) ? 'El admin debe activar las acciones' : 'La retro está pausada o cerrada' });
     const action = data.actions.find(a => a.id === id);
     if (!action) return send(res, 404, { error: 'Acción no encontrada' });
     if (!action.votes) action.votes = {};
