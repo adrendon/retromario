@@ -79,7 +79,6 @@
   <div class="modal">
     <span class="modal-confetti" aria-hidden="true">🧊</span>
     <h2 id="mood-title">🎮 ¿Cómo te sientes hoy?</h2>
-    <p class="modal-lead">Elige el emoji que mejor represente tu ánimo.</p>
     <form id="mood-form" autocomplete="off">
       <div class="mood-grid" id="mood-grid"></div>
       <div class="modal-actions" style="gap:8px; flex-wrap:wrap;">
@@ -114,11 +113,11 @@
 <div class="modal-backdrop" id="actions-modal" role="dialog" aria-modal="true" aria-labelledby="actions-title" hidden>
   <div class="modal" style="max-width:560px">
     <span class="modal-confetti" aria-hidden="true">🏆</span>
-    <h2 id="actions-title">👑 Crear acciones</h2>
-    <p class="modal-lead">Crea hasta <strong>5 acciones</strong>; el equipo las vota directamente desde acciones propuestas.</p>
+    <h2 id="actions-title">🏆 Definir acciones</h2>
+    <p class="modal-lead">Define hasta <strong>5 acciones</strong> claras y el equipo vota las más importantes.</p>
     <div class="actions-panel" id="actions-panel">
       <form class="actions-form admin-only" id="actions-form" autocomplete="off" hidden>
-        <input id="action-input" type="text" maxlength="240" placeholder="Escribe una acción para el próximo sprint…" />
+        <input id="action-input" type="text" maxlength="240" placeholder="Ej. Alinear criterios antes de iniciar historias…" />
         <button type="submit" class="btn btn-primary">➕ Añadir</button>
       </form>
       <p class="actions-meta"><span id="actions-count">0</span> / 5 acciones <button type="button" class="btn-mini admin-only" id="actions-clear" hidden>🗑️ Borrar todas</button></p>
@@ -253,11 +252,11 @@
           <div class="flex items-center justify-between gap-3 mb-3">
             <div>
               <p class="font-mono text-[10px] uppercase text-slate-gray">Estado de ánimo</p>
-              <h2 class="font-display font-bold text-xl">🎮 ¿Cómo llegas hoy?</h2>
+              <h2 class="font-display font-bold text-xl">🎮 ¿Cómo te sientes hoy?</h2>
             </div>
             <button type="button" class="btn-mini text-xs font-mono bg-luigi-green text-white px-3 py-1.5 rounded-full border-2 border-slate-gray shadow-retro-sm" data-opens="mood-modal">Elegir</button>
           </div>
-          <div id="my-mood-card" class="participant-empty text-sm text-slate-gray">Elige tu estado para aparecer en el muro del equipo.</div>
+          <div id="my-mood-card" class="participant-empty text-sm text-slate-gray">¿Cómo te sientes hoy?</div>
         </article>
 
         <article id="actions-dashboard" class="bg-white border-2 border-slate-gray rounded-2xl p-5 shadow-retro-sm">
@@ -365,7 +364,7 @@
                   <h3 class="font-display text-base md:text-lg font-bold mb-2">🏆 Vota y prioriza acciones (10 min)</h3>
                   <p class="text-sm text-slate-gray">Agrupa ideas similares, propone hasta 5 acciones y voten cuáles llevan al próximo sprint.</p>
                 </div>
-                <button type="button" class="btn-mini step-action admin-only mt-4 self-start text-xs font-mono bg-star-gold text-ink-black px-3 py-1.5 rounded-full border-2 border-slate-gray shadow-retro-sm" data-opens="actions-modal" hidden>👑 Crear acciones</button>
+                <button type="button" class="btn-mini step-action admin-only mt-4 self-start text-xs font-mono bg-star-gold text-ink-black px-3 py-1.5 rounded-full border-2 border-slate-gray shadow-retro-sm" data-opens="actions-modal" hidden>🏆 Definir acciones</button>
               </label>
             </li>
           </ol>
@@ -387,7 +386,7 @@
         <div class="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-4 border-b-4 border-slate-gray pb-4">
           <div>
             <h2 class="font-display font-bold text-2xl md:text-3xl">🏎️ Tablero — Retro Mario Kart</h2>
-            <p class="text-sm text-slate-gray">Cada participante puede añadir tarjetas en cada categoría en tiempo real.</p>
+            <p class="text-sm text-slate-gray">Completa cada categoría con tarjetas claras para compartir ideas y mejorar juntos.</p>
           </div>
           <div id="board-actions" hidden class="flex gap-2"></div>
         </div>
