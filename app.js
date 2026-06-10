@@ -335,8 +335,18 @@ function makePilotAvatar(p, idx) {
   a.style.color = pilotColorInk(idx);
   const pilotLabel = `${p.character || ''} ${p.name || 'Piloto'}`.trim();
   a.setAttribute('aria-label', pilotLabel);
-  // mostramos el emoji del piloto; los nombres completos viven en el extra chip.
-  a.innerHTML = `<span aria-hidden="true" style="font-size:.95rem;line-height:1;">${p.character || ''}</span>`;
+  a.title = pilotLabel;
+
+  const character = document.createElement('span');
+  character.className = 'pilot-chip-character';
+  character.setAttribute('aria-hidden', 'true');
+  character.textContent = p.character || '';
+
+  const name = document.createElement('span');
+  name.className = 'pilot-chip-name';
+  name.textContent = p.name || 'Piloto';
+
+  a.append(character, name);
   return a;
 }
 function renderPilotList(targetId, countId, maxVisible) {
