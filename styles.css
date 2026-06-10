@@ -212,6 +212,9 @@ body:not(.is-admin) .step-check { visibility:hidden; pointer-events:none; }
   cursor:default; line-height:1; overflow:hidden;
 }
 .pilot-chip-avatar.is-current { outline:2px solid #facc15; }
+.pilot-chip-avatar:focus-visible {
+  outline:2px solid #facc15;
+  outline-offset:2px;
 .pilot-chip-character { flex:0 0 auto; font-size:.95rem; line-height:1; }
 .pilot-chip-name {
   min-width:0;
@@ -223,6 +226,24 @@ body:not(.is-admin) .step-check { visibility:hidden; pointer-events:none; }
   width:32px; min-width:32px; max-width:32px; flex-basis:32px;
   background:#e2e8f0; color:#1d2939; cursor:pointer; font-family:'JetBrains Mono', monospace;
   appearance:none; padding:0;
+}
+.pilot-hover-tooltip {
+  position:fixed;
+  z-index:1000;
+  max-width:min(12rem, calc(100vw - 16px));
+  padding:5px 10px;
+  border-radius:999px;
+  background:rgba(17,24,39,.94);
+  color:#fff;
+  box-shadow:0 8px 20px rgba(0,0,0,.2);
+  font-family:'JetBrains Mono', monospace;
+  font-size:.78rem;
+  font-weight:700;
+  line-height:1.2;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  pointer-events:none;
 }
 
 .pilot-chip-extra:hover,

@@ -324,6 +324,45 @@ function pilotColorInk(idx) {
 }
 
 const expandedPilotLists = new Set();
+let pilotTooltipHideTimer = null;
+
+function getPilotTooltip() {
+  let tooltip = document.getElementById('pilot-hover-tooltip');
+  if (!tooltip) {
+    tooltip = document.createElement('div');
+    tooltip.id = 'pilot-hover-tooltip';
+    tooltip.className = 'pilot-hover-tooltip';
+    tooltip.setAttribute('role', 'tooltip');
+    tooltip.hidden = true;
+    document.body.appendChild(tooltip);
+  }
+  return tooltip;
+}
+
+function showPilotTooltip(target) {
+  const label = target && target.dataset ? target.dataset.pilotLabel : '';
+  if (!label) return;
+  clearTimeout(pilotTooltipHideTimer);
+  const tooltip = getPilotTooltip();
+  tooltip.textContent = label;
+  tooltip.hidden = false;
+
+  const rect = target.getBoundingClientRect();
+  const tooltipRect = tooltip.getBoundingClientRect();
+  const margin = 8;
+  const centeredLeft = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+  const left = Math.max(margin, Math.min(centeredLeft, window.innerWidth - tooltipRect.width - margin));
+  tooltip.style.left = `${left}px`;
+  tooltip.style.top = `${rect.bottom + margin}px`;
+}
+
+function hidePilotTooltip(delay = 0) {
+  clearTimeout(pilotTooltipHideTimer);
+  pilotTooltipHideTimer = setTimeout(() => {
+    const tooltip = document.getElementById('pilot-hover-tooltip');
+    if (tooltip) tooltip.hidden = true;
+  }, delay);
+}
 
 function makePilotAvatar(p, idx) {
   const a = document.createElement('span');
@@ -335,6 +374,17 @@ function makePilotAvatar(p, idx) {
   a.style.color = pilotColorInk(idx);
   const pilotLabel = `${p.character || ''} ${p.name || 'Piloto'}`.trim();
   a.setAttribute('aria-label', pilotLabel);
+  a.dataset.pilotLabel = pilotLabel;
+  a.tabIndex = 0;
+  a.innerHTML = `<span aria-hidden="true" style="font-size:.95rem;line-height:1;">${p.character || ''}</span>`;
+  a.addEventListener('pointerenter', () => showPilotTooltip(a));
+  a.addEventListener('pointerleave', () => hidePilotTooltip());
+  a.addEventListener('focus', () => showPilotTooltip(a));
+  a.addEventListener('blur', () => hidePilotTooltip());
+  a.addEventListener('click', () => {
+    showPilotTooltip(a);
+    hidePilotTooltip(1800);
+  });
   a.title = pilotLabel;
 
   const character = document.createElement('span');
