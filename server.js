@@ -556,7 +556,8 @@ async function handleApi(req, res, url) {
       clients.delete(clientId);
       const removed = livePilots.get(clientId);
       livePilots.delete(clientId);
-      if (moods.delete(clientId)) broadcast('moods:update', moodsList());
+      // NO borrar el mood al desconectar SSE — se pierde en reconexiones de proxy.
+      // El mood solo se borra si el usuario lo quita explícitamente (DELETE /api/moods).
       if (adminClientId === clientId) {
         // En una recarga normal el EventSource viejo cierra antes de abrir el nuevo.
         // Damos una ventana corta para no expulsar al admin ni pedir PIN de nuevo.
