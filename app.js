@@ -323,44 +323,20 @@ function pilotColorInk(idx) {
   return (idx % PILOT_COLORS.length === 3) ? '#333333' : '#ffffff';
 }
 
-function closePilotTooltips(except) {
-  document.querySelectorAll('.pilot-chip-avatar.is-tooltip-open').forEach(el => {
-    if (el !== except) el.classList.remove('is-tooltip-open');
-  });
-}
+const expandedPilotLists = new Set();
 
-function wirePilotTooltip(a) {
-  a.addEventListener('click', e => {
-    e.stopPropagation();
-    const willOpen = !a.classList.contains('is-tooltip-open');
-    closePilotTooltips(a);
-    a.classList.toggle('is-tooltip-open', willOpen);
-  });
-  a.addEventListener('blur', () => {
-    window.setTimeout(() => a.classList.remove('is-tooltip-open'), 120);
-  });
-}
-
-function makePilotAvatar(p, idx, opts) {
+function makePilotAvatar(p, idx) {
   const a = document.createElement('span');
-  const tooltipPosition = opts && opts.tooltipPosition;
   a.className = 'pilot-chip-avatar';
-  if (tooltipPosition) a.classList.add(`is-tooltip-${tooltipPosition}`);
   if (currentPilot && p.name.toLowerCase() === currentPilot.name.toLowerCase()) {
     a.classList.add('is-current');
   }
   a.style.background = pilotColorBg(idx);
   a.style.color = pilotColorInk(idx);
   const pilotLabel = `${p.character || ''} ${p.name || 'Piloto'}`.trim();
-  a.title = pilotLabel;
   a.setAttribute('aria-label', pilotLabel);
-  a.setAttribute('tabindex', '0');
-  a.setAttribute('role', 'button');
-  a.dataset.pilotName = pilotLabel;
-  // mostramos el emoji + iniciales pequeñas
+  // mostramos el emoji del piloto; los nombres completos viven en el extra chip.
   a.innerHTML = `<span aria-hidden="true" style="font-size:.95rem;line-height:1;">${p.character || ''}</span>`;
-  wirePilotTooltip(a);
-  if (opts && opts.compact) return a;
   return a;
 }
 function renderPilotList(targetId, countId, maxVisible) {
@@ -371,6 +347,7 @@ function renderPilotList(targetId, countId, maxVisible) {
   if (count) count.textContent = String(pilots.length);
 
   if (!pilots.length) {
+    list.classList.remove('is-expanded');
     const empty = document.createElement('span');
     empty.className = 'pilot-empty';
     empty.textContent = 'Aún no hay pilotos…';
@@ -386,32 +363,44 @@ function renderPilotList(targetId, countId, maxVisible) {
       ]
     : pilots.slice();
 
-  const limit = maxVisible || 4;
-  const visiblePilots = sorted.slice(0, limit);
+  const limit = maxVisible || 6;
+  const isExpanded = expandedPilotLists.has(targetId);
+  const visiblePilots = isExpanded ? sorted : sorted.slice(0, limit);
   const hasExtra = sorted.length > limit;
+
+  list.classList.toggle('is-expanded', isExpanded);
+
   visiblePilots.forEach((p, idx) => {
-    const tooltipPosition = idx === 0 ? 'start' : (!hasExtra && idx === visiblePilots.length - 1 ? 'end' : 'center');
-    list.appendChild(makePilotAvatar(p, idx, { tooltipPosition }));
+    list.appendChild(makePilotAvatar(p, idx));
   });
+
   if (hasExtra) {
-    const extra = document.createElement('span');
-    const extraLabel = sorted.slice(limit).map(p => `${p.character} ${p.name}`).join(' · ');
-    extra.className = 'pilot-chip-avatar pilot-chip-extra is-tooltip-end';
-    extra.textContent = '+' + (sorted.length - limit);
-    extra.title = extraLabel;
-    extra.setAttribute('aria-label', extraLabel);
-    extra.setAttribute('tabindex', '0');
-    extra.setAttribute('role', 'button');
-    extra.dataset.pilotName = extraLabel;
-    wirePilotTooltip(extra);
+    const hiddenPilots = sorted.slice(limit);
+    const hiddenLabel = hiddenPilots.map(p => `${p.character || ''} ${p.name || 'Piloto'}`.trim()).join(' · ');
+    const extra = document.createElement('button');
+    extra.type = 'button';
+    extra.className = 'pilot-chip-avatar pilot-chip-extra';
+    extra.textContent = isExpanded ? '−' : '+' + hiddenPilots.length;
+    extra.setAttribute('aria-expanded', String(isExpanded));
+    extra.setAttribute(
+      'aria-label',
+      isExpanded ? 'Ocultar pilotos extra' : `Mostrar pilotos extra: ${hiddenLabel}`
+    );
+    extra.addEventListener('click', e => {
+      e.stopPropagation();
+      if (isExpanded) expandedPilotLists.delete(targetId);
+      else expandedPilotLists.add(targetId);
+      renderPilotList(targetId, countId, maxVisible);
+      const updatedList = document.getElementById(targetId);
+      if (!isExpanded && updatedList) updatedList.scrollTo({ left: updatedList.scrollWidth, behavior: 'smooth' });
+    });
     list.appendChild(extra);
   }
 }
-document.addEventListener('click', () => closePilotTooltips());
 
 function renderPilots() {
-  renderPilotList('pilot-list', 'pilot-count', 4);
-  renderPilotList('pilot-list-mobile', 'pilot-count-mobile', 4);
+  renderPilotList('pilot-list', 'pilot-count', 6);
+  renderPilotList('pilot-list-mobile', 'pilot-count-mobile', 6);
 
   const current = document.getElementById('current-pilot');
   if (current) {
