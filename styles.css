@@ -204,11 +204,11 @@ body:not(.is-admin) .step-check { visibility:hidden; pointer-events:none; }
 
 /* ---------- Pilotos en pista (chips de header) ---------- */
 .pilot-chip-avatar {
-  width:32px; height:32px; border-radius:999px;
+  width:32px; height:32px; flex:0 0 32px; box-sizing:border-box; border-radius:999px;
   border:2px solid #fff; color:#fff;
   display:inline-flex; align-items:center; justify-content:center;
   font-size:.7rem; font-weight:700; box-shadow:0 0 0 1px rgba(85,94,107,.15);
-  cursor:default; line-height:1;
+  cursor:default; line-height:1; overflow:visible;
 }
 .pilot-chip-avatar.is-current { outline:2px solid #facc15; }
 .pilot-chip-extra {
@@ -727,6 +727,12 @@ body:not(.is-admin) #mini-race { position:static; }
 #board { overflow-y:visible; padding-top:4px; padding-bottom:10px; }
 #pilots-bar,
 #pilot-list { overflow:visible !important; }
+#pilot-list,
+#pilot-list-mobile {
+  flex:0 0 auto;
+  flex-wrap:nowrap;
+  white-space:nowrap;
+}
 .pilot-chip-avatar::after { bottom:auto; top:calc(100% + 8px); z-index:80; }
 
 /* ---------- Tablero cerrado por tiempo ---------- */
@@ -790,6 +796,81 @@ header .md\:hidden {
     padding-left:10px;
     padding-right:10px;
   }
+}
+
+@media (max-width: 640px) {
+  header > div:first-child {
+    padding-left:12px;
+    padding-right:12px;
+    gap:8px;
+  }
+  header .md\:hidden {
+    padding-left:12px;
+    padding-right:12px;
+    gap:8px;
+  }
+  header .font-display.text-mario-red {
+    font-size:1rem;
+  }
+  #pilot-list-mobile {
+    margin-left:2px;
+  }
+  #pilot-list-mobile .pilot-chip-avatar {
+    width:29px;
+    height:29px;
+    flex-basis:29px;
+    font-size:.62rem;
+    border-width:1.5px;
+  }
+  #pilot-list-mobile .pilot-chip-avatar span {
+    font-size:.82rem !important;
+  }
+  #pilot-list-mobile .pilot-chip-extra {
+    font-size:.64rem;
+    letter-spacing:-.02em;
+  }
+  .mood-grid {
+    grid-template-columns:repeat(3,minmax(0,1fr));
+    gap:6px;
+  }
+  .mood-option {
+    min-width:0;
+    padding:6px 2px;
+    font-size:.58rem;
+  }
+  .mood-emoji { font-size:1.35rem; }
+  .mood-label {
+    max-width:100%;
+    font-size:.58rem;
+    line-height:1.05;
+    overflow-wrap:anywhere;
+  }
+  .character-grid {
+    grid-template-columns:repeat(auto-fill,minmax(56px,1fr));
+    gap:5px;
+  }
+  .char-option {
+    min-width:0;
+    padding:5px 2px;
+    font-size:.58rem;
+  }
+  .char-emoji { font-size:1.35rem; }
+  .char-name {
+    max-width:100%;
+    font-size:.55rem;
+    line-height:1.05;
+    overflow-wrap:anywhere;
+  }
+}
+
+@media (max-width: 360px) {
+  #pilot-list-mobile .pilot-chip-avatar {
+    width:27px;
+    height:27px;
+    flex-basis:27px;
+  }
+  .mood-grid { gap:5px; }
+  .mood-option { padding-left:1px; padding-right:1px; }
 }
 
 /* ---------- Ajustes de visibilidad admin y hover ---------- */
