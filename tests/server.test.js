@@ -486,3 +486,60 @@ test('POST /api/cards/:cat/:id/like rechaza si no eres piloto (400)', async () =
   assert.strictEqual(r.status, 400);
 });
 
+
+test('POST /api/cards permite guardar aunque SSE se haya reconectado/cerrado en Render', async () => {
+  const adminCid = 'admin-render-save-1111';
+  const pilotCid = 'pilot-render-save-2222';
+  await openStreamHello(adminCid);
+  await request('POST', '/api/admin/claim', { clientId: adminCid, pin: 'sitioBanco' });
+  await request('POST', '/api/board', { clientId: adminCid, active: true });
+  await request('POST', '/api/pilots', { clientId: pilotCid, name: 'Nina', character: '🍄' });
+
+  // Simula una conexión SSE que el proxy/navegador cierra después del registro.
+  await openStreamHello(pilotCid);
+
+  const r = await request('POST', '/api/cards', { clientId: pilotCid, cat: 'banana-past', text: 'sigue guardando' });
+  assert.strictEqual(r.status, 201);
+  assert.strictEqual(r.body.author, 'Nina');
+});
+
+test('GET /api/state marca isOwner para el clientId que creó la tarjeta', async () => {
+  const adminCid = 'admin-owner-state-1111';
+  const pilotCid = 'pilot-owner-state-2222';
+  await openStreamHello(adminCid);
+  await request('POST', '/api/admin/claim', { clientId: adminCid, pin: 'sitioBanco' });
+  await request('POST', '/api/board', { clientId: adminCid, active: true });
+  await request('POST', '/api/pilots', { clientId: pilotCid, name: 'Oli', character: '🐢' });
+  const created = await request('POST', '/api/cards', { clientId: pilotCid, cat: 'power-past', text: 'mi tarjeta' });
+
+  const ownerState = await request('GET', `/api/state?clientId=${pilotCid}`);
+  const ownerCard = ownerState.body.cards['power-past'].find(c => c.id === created.body.id);
+  assert.strictEqual(ownerCard.isOwner, true);
+
+  const otherState = await request('GET', '/api/state?clientId=pilot-owner-state-3333');
+  const otherCard = otherState.body.cards['power-past'].find(c => c.id === created.body.id);
+  assert.strictEqual(otherCard.isOwner, undefined);
+});
+
+test('DELETE /api/cards permite borrar con historial local de ids si cambió el clientId', async () => {
+  const adminCid = 'admin-history-delete-1111';
+  const authorCid = 'pilot-history-delete-2222';
+  const newBrowserCid = 'pilot-history-delete-3333';
+  await openStreamHello(adminCid);
+  await request('POST', '/api/admin/claim', { clientId: adminCid, pin: 'sitioBanco' });
+  await request('POST', '/api/board', { clientId: adminCid, active: true });
+  await request('POST', '/api/pilots', { clientId: authorCid, name: 'Paz', character: '🌟' });
+  const created = await request('POST', '/api/cards', { clientId: authorCid, cat: 'shortcut-past', text: 'se puede borrar' });
+
+  const denied = await request('DELETE', `/api/cards/shortcut-past/${created.body.id}`, { clientId: newBrowserCid });
+  assert.strictEqual(denied.status, 403);
+
+  const deleted = await request('DELETE', `/api/cards/shortcut-past/${created.body.id}`, {
+    clientId: newBrowserCid,
+    ownedCardIds: [created.body.id]
+  });
+  assert.strictEqual(deleted.status, 204);
+
+  const state = await request('GET', '/api/state');
+  assert.deepStrictEqual(state.body.cards['shortcut-past'], []);
+});
