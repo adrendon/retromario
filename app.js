@@ -1087,6 +1087,7 @@ const raceMsg     = document.getElementById('race-msg');
 
 let raceState = { target: 6, standings: [], winner: null };
 let lastWinnerKey = null;
+let lastRaceRenderKey = '';
 
 function escapeText(s) { return String(s).replace(/[<>&]/g, ch => ({'<':'&lt;','>':'&gt;','&':'&amp;'}[ch])); }
 
@@ -1162,7 +1163,7 @@ let raceResizeTimer = null;
 if (typeof window !== 'undefined') {
   window.addEventListener('resize', () => {
     window.clearTimeout(raceResizeTimer);
-    raceResizeTimer = window.setTimeout(() => renderRace(), 120);
+    raceResizeTimer = window.setTimeout(() => renderRace({ force: true }), 120);
   }, { passive: true });
 }
 
@@ -1183,11 +1184,30 @@ function applyRaceState(rs) {
   }
 }
 
-function renderRace() {
+function getRaceRenderKey(target, rawStandings) {
+  const me = currentPilot ? String(currentPilot.name || '').toLowerCase() : '';
+  const standingsKey = rawStandings.map(s => [
+    s && s.name,
+    s && s.character,
+    Number((s && s.columns) || 0),
+    Number((s && s.cards) || 0),
+    !!(s && s.finished),
+    Number((s && s.finishedAt) || 0)
+  ]);
+  const finishersKey = (raceState.finishers || []).map(s => [s && s.name, Number((s && s.finishedAt) || 0)]);
+  return JSON.stringify({ target, me, standings: standingsKey, finishers: finishersKey });
+}
+
+function renderRace(options = {}) {
   if (!raceLanes) return;
-  raceLanes.innerHTML = '';
+  const force = !!options.force;
   const target = raceState.target || 6;
   const rawStandings = raceState.standings || [];
+  const renderKey = getRaceRenderKey(target, rawStandings);
+  if (!force && lastRaceRenderKey === renderKey && raceLanes.children.length) return;
+  lastRaceRenderKey = renderKey;
+
+  raceLanes.innerHTML = '';
   applyRaceDensity(rawStandings.length);
 
   // La pista respeta el orden de llegada calculado por el servidor.
@@ -2412,7 +2432,7 @@ function updateRaceVisibility() {
   // y aunque todavía no existan tarjetas/karts en carrera.
   miniRaceSection.hidden = !boardActive;
   if (wasHidden && boardActive && typeof renderRace === 'function') {
-    window.requestAnimationFrame(() => renderRace());
+    window.requestAnimationFrame(() => renderRace({ force: true }));
   }
 }
 
