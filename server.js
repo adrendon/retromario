@@ -19,6 +19,8 @@ const HOST      = process.env.HOST || '0.0.0.0';
 const ROOT      = __dirname;
 const ADMIN_PIN = String(process.env.MARIO_ADMIN_PIN || 'sitioBanco');
 const ADMIN_SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12h: sobrevive recargas, no reinicios del server
+const PILOT_DISCONNECT_GRACE_MS = 15000; // evita parpadeos por reconexiones SSE/proxies
+const PILOT_LEAVE_GRACE_MS = 2000;      // pagehide/sendBeacon: da margen a una recarga normal
 const DATA_FILE = process.env.MARIO_DATA_FILE || null;
 
 const CATEGORIES = [
@@ -56,9 +58,13 @@ let adminClientId = null;
 // Map<token, { clientId, createdAt }>
 const adminSessions = new Map();
 
-// Pilotos en vivo: solo memoria (se vacían al reiniciar y al desconectar)
+// Pilotos en vivo: solo memoria (se vacían al reiniciar y al desconectar).
+// La salida usa una pequeña gracia porque al recargar o por proxies el SSE viejo
+// puede cerrarse antes de que el navegador abra el nuevo.
 // Map<clientId, { name, character, joinedAt }>
 const livePilots = new Map();
+// Map<clientId, Timeout> para salidas pendientes por cierre de pestaña/SSE.
+const pilotDisconnectTimers = new Map();
 // Pilotos registrados por clientId; no se eliminan al caer SSE para sobrevivir
 // reconexiones/proxies de Render y permitir seguir guardando con el mismo navegador.
 const registeredPilots = new Map();
@@ -262,21 +268,155 @@ function resetState() {
   registeredPilots.clear();
   everPilots.clear();
   moods.clear();
+  for (const timer of pilotDisconnectTimers.values()) clearTimeout(timer);
+  pilotDisconnectTimers.clear();
   for (const res of clients.values()) { try { res.end(); } catch {} }
   clients.clear();
   if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
   savePending = false;
 }
 
+function clearPilotDisconnectTimer(clientId) {
+  const timer = pilotDisconnectTimers.get(clientId);
+  if (!timer) return false;
+  clearTimeout(timer);
+  pilotDisconnectTimers.delete(clientId);
+  return true;
+}
+
+function pilotKey(name) {
+  return String(name || '').trim().toLowerCase();
+}
+
+function activePilotsList() {
+  const byName = new Map();
+  for (const p of livePilots.values()) {
+    if (!p || !p.name) continue;
+    const key = pilotKey(p.name);
+    const existing = byName.get(key);
+    if (!existing || (p.joinedAt || 0) < (existing.joinedAt || 0)) byName.set(key, p);
+  }
+  return [...byName.values()];
+}
+
+function registeredPilotByName(name) {
+  const key = pilotKey(name);
+  for (const p of registeredPilots.values()) {
+    if (p && pilotKey(p.name) === key) return p;
+  }
+  return null;
+}
+
+function migratePilotReferences(oldClientIds, newClientId, pilot) {
+  let changed = false;
+  for (const cat of CATEGORIES) {
+    for (const card of data.cards[cat] || []) {
+      if (oldClientIds.includes(card.authorClientId) && pilotKey(card.author) === pilotKey(pilot.name)) {
+        card.authorClientId = newClientId;
+        changed = true;
+      }
+      if (!card.likes) continue;
+      for (const oldClientId of oldClientIds) {
+        if (!card.likes[oldClientId]) continue;
+        if (!card.likes[newClientId]) {
+          card.likes[newClientId] = { name: pilot.name, character: pilot.character || '🍄', ts: card.likes[oldClientId].ts || Date.now() };
+        }
+        delete card.likes[oldClientId];
+        changed = true;
+      }
+    }
+  }
+
+  for (const action of data.actions) {
+    if (!action.votes) continue;
+    for (const oldClientId of oldClientIds) {
+      if (!action.votes[oldClientId]) continue;
+      if (!action.votes[newClientId]) {
+        action.votes[newClientId] = { name: pilot.name, character: pilot.character || '🍄', ts: action.votes[oldClientId].ts || Date.now() };
+      }
+      delete action.votes[oldClientId];
+      changed = true;
+    }
+  }
+
+  if (changed) saveData();
+  return changed;
+}
+
+function replacePilotClientIdForName(name, currentClientId, pilot) {
+  const key = pilotKey(name);
+  const oldClientIds = new Set();
+  let moodChanged = false;
+
+  for (const [cid, p] of livePilots) {
+    if (cid !== currentClientId && p && pilotKey(p.name) === key) {
+      livePilots.delete(cid);
+      oldClientIds.add(cid);
+      clearPilotDisconnectTimer(cid);
+    }
+  }
+  for (const [cid, p] of registeredPilots) {
+    if (cid !== currentClientId && p && pilotKey(p.name) === key) {
+      registeredPilots.delete(cid);
+      oldClientIds.add(cid);
+      clearPilotDisconnectTimer(cid);
+    }
+  }
+
+  for (const oldClientId of oldClientIds) {
+    const oldMood = moods.get(oldClientId);
+    if (!oldMood) continue;
+    if (!moods.has(currentClientId)) {
+      moods.set(currentClientId, { ...oldMood, name: pilot.name, character: pilot.character || oldMood.character });
+    }
+    moods.delete(oldClientId);
+    moodChanged = true;
+  }
+
+  if (oldClientIds.size) {
+    migratePilotReferences([...oldClientIds], currentClientId, pilot);
+    logEvent('pilot_client_migrated', { clientId: currentClientId, previousClientIds: oldClientIds.size, name: pilot.name });
+  }
+  return { changed: oldClientIds.size > 0, moodChanged };
+}
+
+function broadcastPilotsAndRace() {
+  broadcast('pilots:update', { pilots: getPilotsList(), allPilots: getAllPilotsList() });
+  broadcastRace();
+}
+
+function schedulePilotDisconnect(clientId, reason, graceMs = PILOT_DISCONNECT_GRACE_MS) {
+  if (!clientId || !livePilots.has(clientId)) return false;
+  clearPilotDisconnectTimer(clientId);
+  const pilot = livePilots.get(clientId);
+  const timer = setTimeout(() => {
+    pilotDisconnectTimers.delete(clientId);
+    if (clients.has(clientId)) return;
+    const removed = livePilots.get(clientId);
+    if (!removed) return;
+    livePilots.delete(clientId);
+    const stillThere = activePilotsList().some(p => p.name.toLowerCase() === removed.name.toLowerCase());
+    if (!stillThere) {
+      broadcastPilotsAndRace();
+      console.log(`👋 ${removed.character} ${removed.name} se desconectó (sigue en participantes históricos)`);
+    }
+    logEvent('pilot_disconnected', { clientId, reason });
+  }, Math.max(0, Number(graceMs) || 0));
+  if (typeof timer.unref === 'function') timer.unref();
+  pilotDisconnectTimers.set(clientId, timer);
+  logEvent('pilot_disconnect_scheduled', { clientId, reason, graceMs, name: pilot && pilot.name });
+  return true;
+}
+
 function getPilotsList() {
-  // Participantes registrados durante esta sesión del server. No los quitamos al desconectar
-  // porque en Render/proxies una reconexión breve no debe hacer desaparecer usuarios ya creados.
-  return [...everPilots.values()];
+  // Solo pilotos actualmente activos/en gracia. Los participantes históricos se
+  // devuelven aparte en allPilots para exportes, carrera y reportes.
+  return activePilotsList();
 }
 
 function getAllPilotsList() {
-  // Alias explícito para reportes/Excel: todos los pilotos registrados en la sesión.
-  return getPilotsList();
+  // Reportes/Excel: todos los pilotos registrados en la sesión.
+  return [...everPilots.values()];
 }
 
 /* ---------- SSE ---------- */
@@ -583,6 +723,10 @@ async function handleApi(req, res, url) {
     res.write(`event: hello\ndata: ${JSON.stringify({ clientId })}\n\n`);
     res.write(`event: snapshot\ndata: ${JSON.stringify(fullState(clientId))}\n\n`);
     clients.set(clientId, res);
+    if (clearPilotDisconnectTimer(clientId)) {
+      logEvent('pilot_disconnect_cancelled', { clientId, reason: 'sse_reconnected' });
+      broadcastPilotsAndRace();
+    }
     logEvent('sse_connected', { clientId, clients: clients.size });
 
     const ka = setInterval(() => { try { res.write(': keepalive\n\n'); } catch {} }, 25000);
@@ -591,8 +735,9 @@ async function handleApi(req, res, url) {
       clearInterval(ka);
       if (clients.get(clientId) !== res) return;
       clients.delete(clientId);
-      const removed = livePilots.get(clientId);
-      livePilots.delete(clientId);
+      // No borramos registeredPilots/everPilots: preservan autoría, permisos de
+      // tarjetas y reportes. Solo marcamos la presencia en vivo para que, si no
+      // reconecta, desaparezca de la lista actual.
       // NO borrar el mood al desconectar SSE — se pierde en reconexiones de proxy.
       // El mood solo se borra si el usuario lo quita explícitamente (DELETE /api/moods).
       if (adminClientId === clientId) {
@@ -607,15 +752,7 @@ async function handleApi(req, res, url) {
         }, 10000);
       }
       logEvent('sse_disconnected', { clientId, clients: clients.size });
-      if (removed) {
-        const stillThere = [...livePilots.values()]
-          .some(p => p.name.toLowerCase() === removed.name.toLowerCase());
-        if (!stillThere) {
-          broadcast('pilots:update', { pilots: getPilotsList(), allPilots: getAllPilotsList() });
-          broadcastRace();
-          console.log(`👋 ${removed.character} ${removed.name} se desconectó (sigue en participantes)`);
-        }
-      }
+      schedulePilotDisconnect(clientId, 'sse_close', PILOT_DISCONNECT_GRACE_MS);
     };
     req.on('close', cleanup);
     req.on('error', cleanup);
@@ -711,6 +848,17 @@ async function handleApi(req, res, url) {
     return send(res, 200, { ok: true });
   }
 
+  // POST /api/pilots/leave  body: { clientId }
+  // Lo usa pagehide/sendBeacon. No elimina la sesión ni los históricos; solo
+  // agenda sacar al piloto de la lista en vivo si no vuelve a registrarse.
+  if (req.method === 'POST' && parts.length === 3 && parts[1] === 'pilots' && parts[2] === 'leave') {
+    const body = await readBody(req).catch(() => ({}));
+    const clientId = normalizeClientId((body && body.clientId) || req.headers['x-client-id'] || '');
+    if (!clientId) return send(res, 400, { error: 'clientId requerido' });
+    schedulePilotDisconnect(clientId, 'pagehide', PILOT_LEAVE_GRACE_MS);
+    return send(res, 200, { ok: true });
+  }
+
   // POST /api/pilots  body: { clientId, name, character }
   if (req.method === 'POST' && parts.length === 2 && parts[1] === 'pilots') {
     const body = await readBody(req);
@@ -722,14 +870,18 @@ async function handleApi(req, res, url) {
 
     // Mantiene el piloto por clientId aunque se caiga SSE (proxies/Render) y
     // deduplica la lista histórica por nombre para reportes.
-    const existing = registeredPilots.get(clientId) || everPilots.get(name.toLowerCase());
+    const nameKey = pilotKey(name);
+    const existing = registeredPilots.get(clientId) || registeredPilotByName(name) || everPilots.get(nameKey);
     const pilot = { name, character, joinedAt: (existing && existing.joinedAt) || Date.now() };
+    clearPilotDisconnectTimer(clientId);
+    const migration = replacePilotClientIdForName(name, clientId, pilot);
     livePilots.set(clientId, pilot);
     registeredPilots.set(clientId, pilot);
-    everPilots.set(name.toLowerCase(), { name, character, joinedAt: pilot.joinedAt });
+    everPilots.set(nameKey, { name, character, joinedAt: pilot.joinedAt });
     logEvent('pilot_registered', { clientId, name, character });
-    broadcast('pilots:update', { pilots: getPilotsList(), allPilots: getAllPilotsList() });
-    broadcastRace();
+    broadcastPilotsAndRace();
+    if (migration.moodChanged) broadcast('moods:update', moodsList());
+    if (!clients.has(clientId)) schedulePilotDisconnect(clientId, 'no_sse_after_register', PILOT_DISCONNECT_GRACE_MS);
     return send(res, 200, { pilots: getPilotsList(), allPilots: getAllPilotsList() });
   }
 

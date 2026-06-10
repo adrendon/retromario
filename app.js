@@ -385,6 +385,18 @@ function makePilotAvatar(p, idx) {
     showPilotTooltip(a);
     hidePilotTooltip(1800);
   });
+  a.title = pilotLabel;
+
+  const character = document.createElement('span');
+  character.className = 'pilot-chip-character';
+  character.setAttribute('aria-hidden', 'true');
+  character.textContent = p.character || '';
+
+  const name = document.createElement('span');
+  name.className = 'pilot-chip-name';
+  name.textContent = p.name || 'Piloto';
+
+  a.append(character, name);
   return a;
 }
 function renderPilotList(targetId, countId, maxVisible) {
@@ -2007,15 +2019,29 @@ if (SERVER_MODE) {
 }
 
 /* ---------- Notificar al servidor cuando se cierra la pestaña ---------- */
-if (SERVER_MODE) {
-  window.addEventListener('pagehide', () => {
-    // EventSource se cierra solo → el server limpia. Esto es por si el navegador retiene la conexión.
-    if (currentPilot && clientId && navigator.sendBeacon) {
-      // No hay endpoint específico, pero al cerrar la página el SSE se corta
-      // y el server elimina al piloto en req.on('close').
+function notifyPilotLeaving() {
+  if (!SERVER_MODE || !currentPilot || !clientId) return;
+  const payload = JSON.stringify({ clientId });
+  try {
+    if (navigator.sendBeacon) {
+      const blob = new Blob([payload], { type: 'application/json' });
+      if (navigator.sendBeacon('/api/pilots/leave', blob)) return;
     }
-  });
+  } catch {}
+  try {
+    fetch('/api/pilots/leave', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Client-Id': clientId || '' },
+      body: payload,
+      keepalive: true
+    }).catch(() => {});
+  } catch {}
 }
+
+if (SERVER_MODE) {
+  window.addEventListener('pagehide', notifyPilotLeaving);
+}
+
 
 /* ---------- Sincronización entre pestañas (modo local) ---------- */
 if (!SERVER_MODE) {

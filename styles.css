@@ -204,18 +204,26 @@ body:not(.is-admin) .step-check { visibility:hidden; pointer-events:none; }
 
 /* ---------- Pilotos en pista (chips de header) ---------- */
 .pilot-chip-avatar {
-  width:32px; height:32px; flex:0 0 32px; box-sizing:border-box; border-radius:999px;
+  min-width:32px; max-width:8.5rem; height:32px; flex:0 0 auto; box-sizing:border-box; border-radius:999px;
   border:2px solid #fff; color:#fff;
-  display:inline-flex; align-items:center; justify-content:center;
-  font-size:.7rem; font-weight:700; box-shadow:0 0 0 1px rgba(85,94,107,.15);
+  display:inline-flex; align-items:center; justify-content:center; gap:5px;
+  padding:0 9px 0 6px;
+  font-size:.72rem; font-weight:800; box-shadow:0 0 0 1px rgba(85,94,107,.15);
   cursor:default; line-height:1; overflow:hidden;
 }
 .pilot-chip-avatar.is-current { outline:2px solid #facc15; }
 .pilot-chip-avatar:focus-visible {
   outline:2px solid #facc15;
   outline-offset:2px;
+.pilot-chip-character { flex:0 0 auto; font-size:.95rem; line-height:1; }
+.pilot-chip-name {
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
 }
 .pilot-chip-extra {
+  width:32px; min-width:32px; max-width:32px; flex-basis:32px;
   background:#e2e8f0; color:#1d2939; cursor:pointer; font-family:'JetBrains Mono', monospace;
   appearance:none; padding:0;
 }
@@ -742,6 +750,7 @@ body:not(.is-admin) #mini-race { position:static; }
 }
 #pilot-list .pilot-chip-avatar,
 #pilot-list-mobile .pilot-chip-avatar {
+  margin-left:0 !important;
   scroll-snap-align:center;
 }
 #pilot-list.is-expanded > .pilot-chip-avatar,
@@ -821,14 +830,24 @@ header .md\:hidden {
     margin-left:2px;
   }
   #pilot-list-mobile .pilot-chip-avatar {
-    width:29px;
+    min-width:29px;
+    max-width:5.75rem;
     height:29px;
-    flex-basis:29px;
+    flex-basis:auto;
+    padding:0 7px 0 5px;
+    gap:4px;
     font-size:.62rem;
     border-width:1.5px;
   }
-  #pilot-list-mobile .pilot-chip-avatar span {
+  #pilot-list-mobile .pilot-chip-character {
     font-size:.82rem !important;
+  }
+  #pilot-list-mobile .pilot-chip-extra {
+    width:29px;
+    min-width:29px;
+    max-width:29px;
+    flex-basis:29px;
+    padding:0;
   }
   #pilot-list-mobile .pilot-chip-extra {
     font-size:.64rem;
@@ -870,8 +889,14 @@ header .md\:hidden {
 
 @media (max-width: 360px) {
   #pilot-list-mobile .pilot-chip-avatar {
-    width:27px;
+    min-width:27px;
+    max-width:5rem;
     height:27px;
+  }
+  #pilot-list-mobile .pilot-chip-extra {
+    width:27px;
+    min-width:27px;
+    max-width:27px;
     flex-basis:27px;
   }
   .mood-grid { gap:5px; }
