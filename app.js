@@ -376,7 +376,6 @@ function makePilotAvatar(p, idx) {
   a.setAttribute('aria-label', pilotLabel);
   a.dataset.pilotLabel = pilotLabel;
   a.tabIndex = 0;
-  a.innerHTML = `<span aria-hidden="true" style="font-size:.95rem;line-height:1;">${p.character || ''}</span>`;
   a.addEventListener('pointerenter', () => showPilotTooltip(a));
   a.addEventListener('pointerleave', () => hidePilotTooltip());
   a.addEventListener('focus', () => showPilotTooltip(a));
@@ -392,11 +391,7 @@ function makePilotAvatar(p, idx) {
   character.setAttribute('aria-hidden', 'true');
   character.textContent = p.character || '';
 
-  const name = document.createElement('span');
-  name.className = 'pilot-chip-name';
-  name.textContent = p.name || 'Piloto';
-
-  a.append(character, name);
+  a.append(character);
   return a;
 }
 function renderPilotList(targetId, countId, maxVisible) {
