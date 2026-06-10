@@ -2734,8 +2734,10 @@ if (adminTimerPause) {
 if (adminTimerReset) {
   adminTimerReset.addEventListener('click', async () => {
     if (!isAdmin || !clientId) return;
+    const dur = Number(adminTimerSelect && adminTimerSelect.value) || timerState.durationSec || 300;
+    const action = boardActive ? 'start' : 'reset';
     try {
-      const r = await adminFetch('/api/timer', { action: 'reset' });
+      const r = await adminFetch('/api/timer', { action, durationSec: dur });
       if (r.ok) {
         const t = await r.json().catch(() => null);
         if (t) applyTimerState(t);
