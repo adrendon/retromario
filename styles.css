@@ -93,7 +93,9 @@ body.is-admin-route .hero-participant-actions,
 body.is-admin-route #participant-dashboard,
 body.is-admin-route #retro,
 body.is-admin-route #board-timer,
-body.is-admin-route #objective-panel {
+body.is-admin-route #objective-panel,
+body.is-admin-route [data-opens="mood-modal"],
+body.is-admin-route #mood-modal {
   display: none !important;
 }
 body.is-admin-route #main-layout { flex-direction: column; }
