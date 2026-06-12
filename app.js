@@ -2764,10 +2764,15 @@ const timerStateEl = document.getElementById('timer-state');
 let timerState = { durationSec: 300, startedAt: 0, elapsedAtPause: 0, running: false, serverNow: Date.now() };
 let timerTickIv = null;
 let timerOffsetMs = 0;
+// Evita abrir el modal de "tiempo terminado" en la carga inicial si el timer
+// ya estaba expirado en el servidor (sesión anterior guardada en archivo).
+let timerSessionActive = false;
 
 function applyTimerState(t) {
   timerState = { ...timerState, ...t };
   if (timerState.serverNow) timerOffsetMs = Date.now() - timerState.serverNow;
+  // El timer está activo en esta sesión si está corriendo o si acaba de arrancar
+  if (timerState.running) timerSessionActive = true;
   // Música del cronómetro: al correr fuerza la pista creada para el tiempo
   // y la refleja en el reproductor aunque antes hubiera otra pista seleccionada.
   if (timerState.running) {
@@ -2811,10 +2816,12 @@ function renderTimer() {
   const ss = String(sec % 60).padStart(2, '0');
   if (timerClockEl) timerClockEl.textContent = `${mm}:${ss}`;
   if (remainingMs <= 0) {
+    if (timerClockEl) timerClockEl.textContent = '00:00';
     if (timerStateEl) timerStateEl.textContent = '¡Tiempo! 🏁';
     boardTimerEl.classList.add('is-finished');
     autoSetTrack('main');
-    setBoardEnded(boardActive, { showModal: true });
+    // Solo abrir el modal si el timer estuvo corriendo en esta sesión
+    setBoardEnded(boardActive, { showModal: timerSessionActive });
   } else {
     boardTimerEl.classList.remove('is-finished');
     setBoardEnded(false);
